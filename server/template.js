@@ -141,127 +141,13 @@ const sampleScheduleDays = [
   ['Sun', 'Sunday'],
 ]
 
-function styleHeaderRow(row) {
-  row.eachCell((cell) => {
-    cell.font = { bold: true, color: { argb: 'FF0F172A' } }
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } }
-    cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true }
-    cell.border = {
-      top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
-      left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
-      bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
-      right: { style: 'thin', color: { argb: 'FFCBD5E1' } },
-    }
-  })
-}
-
-function setColumnWidths(sheet, widths) {
-  widths.forEach((width, index) => {
-    sheet.getColumn(index + 1).width = width
-  })
-}
-
-function styleWorksheetBase(sheet) {
-  sheet.views = [{ state: 'frozen', ySplit: 1 }]
-}
-
-function styleBodyRows(sheet, startRow, endRow) {
-  for (let rowNum = startRow; rowNum <= endRow; rowNum += 1) {
-    const row = sheet.getRow(rowNum)
-    const isAlternate = rowNum % 2 === 0
-    row.eachCell((cell) => {
-      if (isAlternate) {
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } }
-      }
-      cell.border = {
-        top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-        left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-        bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-        right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-      }
-      cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true }
-    })
-  }
-}
-
 function normalizeHexColor(hex) {
   const raw = String(hex ?? '').trim().replace('#', '')
   if (/^[0-9A-Fa-f]{6}$/.test(raw)) return `FF${raw.toUpperCase()}`
   return 'FF94A3B8'
 }
 
-function applyBadgeColorPreview(sheet, rowCount) {
-  for (let rowNum = 2; rowNum <= rowCount; rowNum += 1) {
-    const colorRaw = sheet.getCell(`D${rowNum}`).value
-    const argb = normalizeHexColor(colorRaw)
-    sheet.getCell(`B${rowNum}`).fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb },
-    }
-    sheet.getCell(`B${rowNum}`).font = { bold: true, color: { argb: 'FF0F172A' } }
-  }
-}
-
-function createInstructionsSheet(workbook) {
-  const instructions = workbook.addWorksheet('Instructions')
-  instructions.getCell('A1').value = 'Embers Workbook Template'
-  instructions.getCell('A1').font = { bold: true, size: 16, color: { argb: 'FF1D4ED8' } }
-
-  const lines = [
-    'Daily workflow intent (from Embers v0.1):',
-    '1) Open app and focus only on today.',
-    '2) Log habit values.',
-    '3) Complete day to lock it.',
-    '4) If a previous day remains open, finish it before editing others.',
-    '',
-    'Workbook notes:',
-    '- Habits.polarity: good or bad (drives left/right split in Day view).',
-    '- score_per_unit: positive for good habits, usually negative for bad habits.',
-    '- Badges sheet uses PERCENTAGE-BASED scoring (% of max possible daily score).',
-    '- schedule_type controls when a habit appears (daily, weekdays, weekends, custom).',
-    '- schedule_days uses comma-separated abbreviations like Mon, Wed, Fri when schedule_type=custom.',
-    '- Focus mode hides navigation and keeps only today visible (no workbook edits needed).',
-    '',
-    'Date Requirements:',
-    '- When active=1: active_from should contain the date it was activated (YYYY-MM-DD).',
-    '- When active=0: inactive_from should contain the date it was deactivated (YYYY-MM-DD).',
-    '- Default state: new habits start with active=1 and active_from set to creation date.',
-    '- When you change active from 1 to 0: manually set inactive_from to today\'s date.',
-    '- When you change active from 0 to 1: manually set active_from to today\'s date.',
-    '',
-    'Column Explanations:',
-    '- habit_id: stable identifier used in saved day history (do not change after creation)',
-    '- type: toggle (0/1) or counter (multiple values)',
-    '- polarity: good (positive side) or bad (negative side)',
-    '- score_per_unit: points earned/lost per unit (positive rewards, negative penalizes)',
-    '- streak_min_count: daily threshold required to qualify for streak',
-    '- active: 0=hidden, 1=visible in app',
-    '- schedule_type: see Schedule Options sheet for valid types',
-    '- schedule_days: comma-separated days (Mon, Tue, etc.) when schedule_type=custom',
-    '- active_from/inactive_from: YYYY-MM-DD date ranges (see Date Requirements above)',
-    '',
-    'Badge Scoring (Percentage-Based):',
-    '- Crash Day (<-40%): Significantly below zero',
-    '- Rough Day (-40% to -15%): Below expectations',
-    '- Struggling Day (-15% to 0%): Slightly negative',
-    '- OK Day (0% to 20%): Minimal progress',
-    '- Solid Day (20% to 40%): Good progress',
-    '- Great Day (40% to 70%): Strong performance',
-    '- Elite Day (>70%): Exceptional day',
-    '- Percentage is calculated as: (actual score / max possible score for active habits) × 100',
-  ]
-
-  lines.forEach((line, index) => {
-    const cell = instructions.getCell(`A${index + 3}`)
-    cell.value = line
-    cell.alignment = { wrapText: true }
-  })
-
-  instructions.getColumn(1).width = 120
-  instructions.getRow(1).height = 24
-  instructions.getRow(3).font = { bold: true }
-}
+// Removed all styling functions - using zero-formatting approach
 
 export async function ensureWorkbookTemplate() {
   try {
@@ -271,89 +157,91 @@ export async function ensureWorkbookTemplate() {
     await fs.mkdir(DATA_DIR, { recursive: true })
     const workbook = new ExcelJS.Workbook()
 
-    createInstructionsSheet(workbook)
+    // Minimal workbook with zero formatting
+    
+    // Instructions sheet - plain text only
+    const instructions = workbook.addWorksheet('Instructions')
+    instructions.getCell('A1').value = 'Embers Workbook Template'
 
+    const lines = [
+      'Daily workflow intent (from Embers v0.1):',
+      '1) Open app and focus only on today.',
+      '2) Log habit values.',
+      '3) Complete day to lock it.',
+      '4) If a previous day remains open, finish it before editing others.',
+      '',
+      'Workbook notes:',
+      '- Habits.polarity: good or bad (drives left/right split in Day view).',
+      '- score_per_unit: positive for good habits, usually negative for bad habits.',
+      '- Badges sheet uses PERCENTAGE-BASED scoring (% of max possible daily score).',
+      '- schedule_type controls when a habit appears (daily, weekdays, weekends, custom).',
+      '- schedule_days uses comma-separated abbreviations like Mon, Wed, Fri when schedule_type=custom.',
+      '- Focus mode hides navigation and keeps only today visible (no workbook edits needed).',
+      '',
+      'Date Requirements:',
+      '- When active=1: active_from should contain the date it was activated (YYYY-MM-DD).',
+      '- When active=0: inactive_from should contain the date it was deactivated (YYYY-MM-DD).',
+      '- Default state: new habits start with active=1 and active_from set to creation date.',
+      '- When you change active from 1 to 0: manually set inactive_from to today\'s date.',
+      '- When you change active from 0 to 1: manually set active_from to today\'s date.',
+      '',
+      'Column Explanations:',
+      '- habit_id: stable identifier used in saved day history (do not change after creation)',
+      '- type: toggle (0/1) or counter (multiple values)',
+      '- polarity: good (positive side) or bad (negative side)',
+      '- score_per_unit: points earned/lost per unit (positive rewards, negative penalizes)',
+      '- streak_min_count: daily threshold required to qualify for streak',
+      '- active: 0=hidden, 1=visible in app',
+      '- schedule_type: see Schedule Options sheet for valid types',
+      '- schedule_days: comma-separated days (Mon, Tue, etc.) when schedule_type=custom',
+      '- active_from/inactive_from: YYYY-MM-DD date ranges (see Date Requirements above)',
+      '',
+      'Badge Scoring (Percentage-Based):',
+      '- Crash Day (<-40%): Significantly below zero',
+      '- Rough Day (-40% to -15%): Below expectations',
+      '- Struggling Day (-15% to 0%): Slightly negative',
+      '- OK Day (0% to 20%): Minimal progress',
+      '- Solid Day (20% to 40%): Good progress',
+      '- Great Day (40% to 70%): Strong performance',
+      '- Elite Day (>70%): Exceptional day',
+      '- Percentage is calculated as: (actual score / max possible score for active habits) × 100',
+    ]
+
+    lines.forEach((line, index) => {
+      instructions.getCell(`A${index + 3}`).value = line
+    })
+
+    instructions.getColumn(1).width = 80
+
+    // Habits sheet
     const habits = workbook.addWorksheet('Habits')
     habits.addRow(HABIT_HEADERS)
     sampleHabits.forEach((row) => habits.addRow(row))
-    styleHeaderRow(habits.getRow(1))
-    styleWorksheetBase(habits)
-    styleBodyRows(habits, 2, sampleHabits.length + 1)
-    setColumnWidths(habits, [24, 32, 12, 18, 12, 16, 18, 12, 12, 52, 10, 12, 16, 20, 14, 14])
+    habits.views = [{ state: 'frozen', ySplit: 1 }]
 
+    // Groups sheet
     const groups = workbook.addWorksheet('Groups')
     groups.addRow(GROUP_HEADERS)
     sampleGroups.forEach((row) => groups.addRow(row))
-    styleHeaderRow(groups.getRow(1))
-    styleWorksheetBase(groups)
-    styleBodyRows(groups, 2, sampleGroups.length + 1)
-    setColumnWidths(groups, [18, 24, 12])
+    groups.views = [{ state: 'frozen', ySplit: 1 }]
 
+    // Badges sheet
     const badges = workbook.addWorksheet('Badges')
     badges.addRow(BADGE_HEADERS)
     sampleBadges.forEach((row) => badges.addRow(row))
-    styleHeaderRow(badges.getRow(1))
-    styleWorksheetBase(badges)
-    styleBodyRows(badges, 2, sampleBadges.length + 1)
-    applyBadgeColorPreview(badges, sampleBadges.length + 1)
-    setColumnWidths(badges, [16, 20, 10, 14, 12, 12, 10])
+    badges.views = [{ state: 'frozen', ySplit: 1 }]
 
+    // Schedule Options sheet
     const schedules = workbook.addWorksheet('Schedule Options')
     schedules.addRow(SCHEDULE_HEADERS)
     sampleSchedules.forEach((row) => schedules.addRow(row))
-    styleHeaderRow(schedules.getRow(1))
-    styleWorksheetBase(schedules)
-    styleBodyRows(schedules, 2, sampleSchedules.length + 1)
-    setColumnWidths(schedules, [16, 40, 18])
+    schedules.views = [{ state: 'frozen', ySplit: 1 }]
 
+    // Schedule Days sheet
     const scheduleDays = workbook.addWorksheet('Schedule Days')
     scheduleDays.addRow(SCHEDULE_DAYS_HEADERS)
     sampleScheduleDays.forEach((row) => scheduleDays.addRow(row))
-    styleHeaderRow(scheduleDays.getRow(1))
-    styleWorksheetBase(scheduleDays)
-    styleBodyRows(scheduleDays, 2, sampleScheduleDays.length + 1)
-    setColumnWidths(scheduleDays, [10, 20])
-
-    // Add data validation for better UX (validated to not cause corruption)
-    habits.getColumn('C').eachCell({ includeEmpty: false }, (cell, rowNumber) => {
-      if (rowNumber > 1 && rowNumber <= 100) {
-        cell.dataValidation = {
-          type: 'list',
-          allowBlank: true,
-          formulae: ['"toggle,counter"'],
-        }
-      }
-    })
-
-    habits.getColumn('E').eachCell({ includeEmpty: false }, (cell, rowNumber) => {
-      if (rowNumber > 1 && rowNumber <= 100) {
-        cell.dataValidation = {
-          type: 'list',
-          allowBlank: true,
-          formulae: ['"good,bad"'],
-        }
-      }
-    })
-
-    habits.getColumn('K').eachCell({ includeEmpty: false }, (cell, rowNumber) => {
-      if (rowNumber > 1 && rowNumber <= 100) {
-        cell.dataValidation = {
-          type: 'list',
-          allowBlank: true,
-          formulae: ['"0,1"'],
-        }
-      }
-    })
-
-    badges.getColumn('G').eachCell({ includeEmpty: false }, (cell, rowNumber) => {
-      if (rowNumber > 1 && rowNumber <= 100) {
-        cell.dataValidation = {
-          type: 'list',
-          allowBlank: true,
-          formulae: ['"0,1"'],
-        }
-      }
-    })
+    scheduleDays.views = [{ state: 'frozen', ySplit: 1 }]
 
     await workbook.xlsx.writeFile(WORKBOOK_PATH)
     return true

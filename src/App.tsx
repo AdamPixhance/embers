@@ -592,7 +592,8 @@ function App() {
         maxPositiveScore: 0,
         maxNegativeMagnitude: 0,
         scorePercent: 0,
-        fillPercent: 50,
+        fillPercent: 0,
+        fillColor: '#94a3b8',
       }
     }
 
@@ -613,27 +614,27 @@ function App() {
       }
     }
 
-    const scorePercent =
-      score >= 0
-        ? maxPositiveScore > 0
-          ? (score / maxPositiveScore) * 100
-          : 0
-        : maxNegativeMagnitude > 0
-          ? (score / maxNegativeMagnitude) * 100
-          : 0
+    // Calculate signed scorePercent: ranges from -100 to +100
+    let scorePercent: number
+    if (score >= 0) {
+      scorePercent = maxPositiveScore > 0 ? (score / maxPositiveScore) * 100 : 0
+    } else {
+      scorePercent = maxNegativeMagnitude > 0 ? (score / maxNegativeMagnitude) * 100 : 0
+    }
+    scorePercent = Math.max(-100, Math.min(100, scorePercent))
 
-    const totalSpan = maxPositiveScore + maxNegativeMagnitude
-    const fillPercent =
-      totalSpan > 0
-        ? Math.max(0, Math.min(100, ((score + maxNegativeMagnitude) / totalSpan) * 100))
-        : 50
+    // Fill percent is the absolute percentage, used for visual fill width
+    // Red fill for negative, green fill for positive
+    const fillPercent = Math.abs(scorePercent)
+    const fillColor = scorePercent < 0 ? '#ef4444' : '#22c55e'
 
     return {
       score,
       maxPositiveScore,
       maxNegativeMagnitude,
-      scorePercent: Math.max(-100, Math.min(100, scorePercent)),
+      scorePercent,
       fillPercent,
+      fillColor,
     }
   }, [data, counts, habitsForSelectedDate])
 
@@ -941,7 +942,7 @@ function App() {
             <div className="score-section">
               <div className="score-value">Score {progressModel.score.toFixed(1)}</div>
               <div className="score-bar-wrap">
-                <div className="score-bar-fill" style={{ width: `${progressModel.fillPercent}%` }} />
+                <div className="score-bar-fill" style={{ width: `${progressModel.fillPercent}%`, backgroundColor: progressModel.fillColor }} />
               </div>
             </div>
 
