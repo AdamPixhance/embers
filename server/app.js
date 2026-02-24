@@ -3,7 +3,7 @@ import cors from 'cors'
 import fs from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import { IMAGES_DIR, WORKBOOK_PATH } from './constants.js'
-import { ensureWorkbookTemplate } from './template.js'
+import { ensureWorkbookTemplate, resetAllAppData } from './template.js'
 import { loadWorkbookData } from './workbook.js'
 import {
   completeDay,
@@ -170,6 +170,30 @@ export async function createEmbersApi() {
     } catch (error) {
       res.status(500).json({
         message: 'Unable to open active workbook.',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      })
+    }
+  })
+
+  app.post('/api/reset-app-data', async (req, res) => {
+    try {
+      const confirmPhrase = String(req.body?.confirmPhrase ?? '').trim()
+      if (confirmPhrase !== 'DELETE ALL DATA') {
+        return res.status(400).json({
+          message: 'Reset rejected.',
+          details: 'Invalid confirmation phrase. Use DELETE ALL DATA.',
+        })
+      }
+
+      const result = await resetAllAppData()
+      res.json({
+        ok: true,
+        message: 'All personal habits, statistics, and local app data were reset.',
+        ...result,
+      })
+    } catch (error) {
+      res.status(500).json({
+        message: 'Unable to reset app data.',
         details: error instanceof Error ? error.message : 'Unknown error',
       })
     }

@@ -122,6 +122,39 @@ button:focus-visible {
   background: #fff1f2;
 }
 
+.danger-zone {
+  padding: 14px 16px;
+  border: 1px solid #fca5a5;
+  background: #fff1f2;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.danger-zone h2 {
+  margin: 0 0 6px;
+  color: #991b1b;
+  font-size: 1rem;
+}
+
+.danger-zone p {
+  margin: 0;
+  color: #7f1d1d;
+  font-size: 0.9rem;
+  max-width: 880px;
+}
+
+.danger-button {
+  color: #fff;
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+}
+
+.danger-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #b91c1c, #991b1b);
+}
+
 .date-strip {
   padding: 10px 12px;
   display: flex;

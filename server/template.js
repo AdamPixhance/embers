@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs'
 import fs from 'node:fs/promises'
-import { DATA_DIR, WORKBOOK_PATH } from './constants.js'
+import { DATA_DIR, DAY_LOG_PATH, IMAGES_DIR, PROJECTS_PATH, WORKBOOK_PATH } from './constants.js'
 
 const HABIT_HEADERS = [
   'habit_id',
@@ -322,5 +322,24 @@ export async function ensureWorkbookTemplate() {
 
     await workbook.xlsx.writeFile(WORKBOOK_PATH)
     return true
+  }
+}
+
+export async function resetAllAppData() {
+  await fs.mkdir(DATA_DIR, { recursive: true })
+
+  const targets = [WORKBOOK_PATH, DAY_LOG_PATH, PROJECTS_PATH]
+  for (const target of targets) {
+    await fs.rm(target, { force: true })
+  }
+
+  await fs.rm(IMAGES_DIR, { recursive: true, force: true })
+  await fs.mkdir(IMAGES_DIR, { recursive: true })
+
+  await ensureWorkbookTemplate()
+
+  return {
+    workbookPath: WORKBOOK_PATH,
+    resetAt: new Date().toISOString(),
   }
 }

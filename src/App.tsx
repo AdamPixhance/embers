@@ -112,6 +112,7 @@ function App() {
   const [dayCompletedAt, setDayCompletedAt] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
   const [habitHistory, setHabitHistory] = useState<HabitHistoryItem[]>([])
+  const [resetting, setResetting] = useState(false)
 
   const loadWorkbookData = async () => {
     const response = await fetch(apiUrl('/api/data'))
@@ -252,6 +253,51 @@ function App() {
       document.body.removeChild(a)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Export failed')
+    }
+  }
+
+  const resetAppData = async () => {
+    const firstConfirmation = window.confirm(
+      '⚠️ DANGER: This will permanently delete all your personal habits, daily logs, streaks, timeline history, and local app data.\n\nThis cannot be undone.\n\nDo you want to continue?'
+    )
+    if (!firstConfirmation) {
+      return
+    }
+
+    const secondConfirmation = window.prompt(
+      'Final confirmation required.\n\nType exactly: DELETE ALL DATA\n\nThis will reset the app to default placeholders.'
+    )
+
+    if (secondConfirmation !== 'DELETE ALL DATA') {
+      setError('Reset cancelled. Confirmation phrase did not match.')
+      return
+    }
+
+    setResetting(true)
+    try {
+      const response = await fetch(apiUrl('/api/reset-app-data'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmPhrase: 'DELETE ALL DATA' }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to reset app data')
+      }
+
+      const date = todayIso()
+      setSelectedDate(date)
+      setShowHistory(false)
+      setHabitHistory([])
+      const workbook = await loadWorkbookData()
+      await hydrateCountsForDate(workbook, date)
+      await refreshAnalytics(date)
+      setError('')
+      window.alert('App reset complete. All personal data was deleted and default placeholder habits were restored.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Reset failed')
+    } finally {
+      setResetting(false)
     }
   }
 
@@ -529,6 +575,26 @@ function App() {
             {error}
           </div>
         ) : null}
+
+        <section className="card danger-zone" aria-label="Danger zone">
+          <div>
+            <h2>Danger Zone</h2>
+            <p>
+              Resetting will permanently delete all personal habits, streaks, statistics, timeline history, workbook customizations,
+              and local app data. This action is irreversible.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="danger-button"
+            onClick={resetAppData}
+            disabled={resetting || loading || saving}
+            title="Delete all personal data and reset app to default placeholders"
+            aria-label="Delete all personal data and reset app to default placeholders"
+          >
+            {resetting ? 'Resetting…' : 'Reset app and delete all personal data'}
+          </button>
+        </section>
 
         <section className="summary-grid" aria-label="Daily summary statistics">
           <article className="card summary-card">
