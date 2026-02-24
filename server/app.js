@@ -9,6 +9,7 @@ import {
   completeDay,
   computeAnalytics,
   computeHabitHistory,
+  findOpenDayInProgress,
   generateHabitCSV,
   getDayCounts,
   listDayEntries,
@@ -121,11 +122,29 @@ export async function createEmbersApi() {
       const requestedDate = /^\d{4}-\d{2}-\d{2}$/.test(dateParam)
         ? dateParam
         : new Date().toISOString().slice(0, 10)
-      const analytics = computeAnalytics(entries, workbook.habits, requestedDate)
+      const analytics = computeAnalytics(entries, workbook.habits, requestedDate, workbook.badges)
       res.json(analytics)
     } catch (error) {
       res.status(500).json({
         message: 'Unable to compute analytics.',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      })
+    }
+  })
+
+  app.get('/api/open-day', async (req, res) => {
+    try {
+      const entries = await listDayEntries()
+      const dateParam = typeof req.query.date === 'string' ? req.query.date : ''
+      const requestedDate = /^\d{4}-\d{2}-\d{2}$/.test(dateParam)
+        ? dateParam
+        : new Date().toISOString().slice(0, 10)
+
+      const openDay = findOpenDayInProgress(entries, requestedDate)
+      res.json({ openDay })
+    } catch (error) {
+      res.status(500).json({
+        message: 'Unable to evaluate open day continuity.',
         details: error instanceof Error ? error.message : 'Unknown error',
       })
     }

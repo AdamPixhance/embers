@@ -22,22 +22,13 @@ function toNumber(raw, fallback = 0) {
   return Number.isFinite(value) ? value : fallback
 }
 
-function parseStringList(value) {
-  return toText(value)
-    .split(',')
-    .map((part) => part.trim())
-    .filter(Boolean)
-}
-
 function extractRows(sheet) {
   if (!sheet) return []
   const rows = []
   for (let rowNum = 2; rowNum <= sheet.rowCount; rowNum += 1) {
     const row = sheet.getRow(rowNum)
-    const hasContent = row.values.some((entry, idx) => idx > 0 && toText(entry).length > 0)
-    if (hasContent) {
-      rows.push(row)
-    }
+    const hasContent = row.values.some((entry, index) => index > 0 && toText(entry).length > 0)
+    if (hasContent) rows.push(row)
   }
   return rows
 }
@@ -48,12 +39,13 @@ export async function loadWorkbookData() {
 
   const habitsSheet = workbook.getWorksheet('Habits')
   const groupsSheet = workbook.getWorksheet('Groups')
-  const tagOptionsSheet = workbook.getWorksheet('Tag Options')
+  const badgesSheet = workbook.getWorksheet('Badges')
 
   const groups = extractRows(groupsSheet)
     .map((row) => {
       const groupId = toText(row.getCell(1).value)
       if (!groupId) return null
+
       return {
         groupId,
         groupLabel: toText(row.getCell(2).value) || groupId,
@@ -63,20 +55,6 @@ export async function loadWorkbookData() {
     .filter(Boolean)
     .sort((left, right) => left.sortOrder - right.sortOrder)
 
-  const tags = extractRows(tagOptionsSheet)
-    .map((row) => {
-      const tagId = toText(row.getCell(1).value)
-      if (!tagId) return null
-      return {
-        tagId,
-        tagLabel: toText(row.getCell(2).value) || tagId,
-        tagColor: toText(row.getCell(3).value) || '#94a3b8',
-      }
-    })
-    .filter(Boolean)
-
-  const tagColorMap = new Map(tags.map((tag) => [tag.tagId, tag.tagColor]))
-
   const habits = extractRows(habitsSheet)
     .map((row) => {
       const habitId = toText(row.getCell(1).value)
@@ -84,19 +62,25 @@ export async function loadWorkbookData() {
 
       const typeRaw = toText(row.getCell(3).value).toLowerCase()
       const type = typeRaw === 'counter' ? 'counter' : 'toggle'
-      const groupId = toText(row.getCell(4).value)
+      const scorePerUnit = toNumber(row.getCell(6).value, 0)
+      const polarityRaw = toText(row.getCell(5).value).toLowerCase()
+      const polarity = polarityRaw === 'bad' || polarityRaw === 'good'
+        ? polarityRaw
+        : scorePerUnit < 0
+          ? 'bad'
+          : 'good'
+
       const minCount = toNumber(row.getCell(8).value, 0)
       const maxCount = toNumber(row.getCell(9).value, type === 'toggle' ? 1 : 999999)
-      const streakMinCount = Math.max(1, toNumber(row.getCell(7).value, 1))
 
       return {
         habitId,
         label: toText(row.getCell(2).value) || habitId,
         type,
-        groupId,
-        tags: parseStringList(row.getCell(5).value),
-        scorePerUnit: toNumber(row.getCell(6).value, 0),
-        streakMinCount,
+        groupId: toText(row.getCell(4).value),
+        polarity,
+        scorePerUnit,
+        streakMinCount: Math.max(1, toNumber(row.getCell(7).value, 1)),
         minCount,
         maxCount: Math.max(minCount, maxCount),
         tooltip: toText(row.getCell(10).value),
@@ -108,17 +92,28 @@ export async function loadWorkbookData() {
     .filter((habit) => habit.active)
     .sort((left, right) => left.sortOrder - right.sortOrder)
 
-  const habitsWithTagMeta = habits.map((habit) => ({
-    ...habit,
-    tagMeta: habit.tags.map((tagId) => ({
-      tagId,
-      tagColor: tagColorMap.get(tagId) || '#94a3b8',
-    })),
-  }))
+  const badges = extractRows(badgesSheet)
+    .map((row) => {
+      const badgeId = toText(row.getCell(1).value)
+      if (!badgeId) return null
+
+      return {
+        badgeId,
+        displayName: toText(row.getCell(2).value) || badgeId,
+        icon: toText(row.getCell(3).value) || '•',
+        colorHex: toText(row.getCell(4).value) || '#94a3b8',
+        minScore: toNumber(row.getCell(5).value, 0),
+        sortOrder: toNumber(row.getCell(6).value, 9999),
+        active: toNumber(row.getCell(7).value, 1) === 1,
+      }
+    })
+    .filter(Boolean)
+    .filter((badge) => badge.active)
+    .sort((left, right) => left.sortOrder - right.sortOrder)
 
   return {
-    habits: habitsWithTagMeta,
+    habits,
     groups,
-    tags,
+    badges,
   }
 }

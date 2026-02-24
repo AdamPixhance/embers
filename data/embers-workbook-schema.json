@@ -9,7 +9,7 @@
         "label",
         "type",
         "group_id",
-        "tags",
+        "polarity",
         "score_per_unit",
         "streak_min_count",
         "min_count",
@@ -21,15 +21,23 @@
       "typeValues": ["toggle", "counter"],
       "notes": {
         "group_id": "must match a value from Groups.group_id",
-        "tags": "comma-separated tag_id values from Tag Options.tag_id",
+        "polarity": "good or bad; controls left/right split in day view",
         "active": "1 = enabled, 0 = hidden"
       }
     },
     "Groups": {
       "requiredColumns": ["group_id", "group_label", "sort_order"]
     },
-    "Tag Options": {
-      "requiredColumns": ["tag_id", "tag_label", "tag_color"]
+    "Badges": {
+      "requiredColumns": [
+        "badge_id",
+        "display_name",
+        "icon",
+        "color_hex",
+        "min_score",
+        "sort_order",
+        "active"
+      ]
     },
     "Category Defaults": {
       "requiredColumns": [

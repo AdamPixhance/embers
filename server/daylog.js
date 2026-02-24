@@ -157,7 +157,46 @@ export async function listDayEntries() {
   return normalizedEntries
 }
 
-export function computeAnalytics(entries, habits, upToDate) {
+function resolveBadgeForScore(score, badges) {
+  const ordered = [...(badges ?? [])]
+    .filter((badge) => badge?.active !== false)
+    .sort((left, right) => left.minScore - right.minScore || left.sortOrder - right.sortOrder)
+
+  let winner = null
+  for (const badge of ordered) {
+    if (score >= badge.minScore) {
+      winner = badge
+    }
+  }
+  return winner
+}
+
+function hasAnyProgress(dayRecord) {
+  const counts = normalizeDayRecord(dayRecord).counts
+  return Object.values(counts).some((value) => normalizeCountValue(value) !== 0)
+}
+
+export function findOpenDayInProgress(entries, upToDate) {
+  const dateKeys = Object.keys(entries)
+    .filter((key) => isIsoDate(key) && key <= upToDate)
+    .sort()
+
+  for (let index = dateKeys.length - 1; index >= 0; index -= 1) {
+    const dateIso = dateKeys[index]
+    const record = normalizeDayRecord(entries[dateIso])
+    if (!record.locked && hasAnyProgress(record)) {
+      return {
+        date: dateIso,
+        locked: false,
+        hasProgress: true,
+      }
+    }
+  }
+
+  return null
+}
+
+export function computeAnalytics(entries, habits, upToDate, badges = []) {
   const habitMap = new Map(habits.map((habit) => [habit.habitId, habit]))
 
   const dateKeys = Object.keys(entries)
@@ -228,8 +267,26 @@ export function computeAnalytics(entries, habits, upToDate) {
       score: dayScore,
       qualifiedCount: qualified,
       totalHabits: habits.length,
+      badge: resolveBadgeForScore(dayScore, badges),
     }
   })
+
+  const badgeTimeline = dateKeys.slice(-120).map((dateIso) => {
+    const dayCounts = normalizeDayRecord(entries[dateIso]).counts
+    let dayScore = 0
+    for (const habit of habits) {
+      const count = normalizeCountValue(dayCounts[habit.habitId] ?? 0)
+      dayScore += count * habit.scorePerUnit
+    }
+
+    return {
+      date: dateIso,
+      score: dayScore,
+      badge: resolveBadgeForScore(dayScore, badges),
+    }
+  })
+
+  const dailyBadge = resolveBadgeForScore(totalScore, badges)
 
   return {
     totalScore,
@@ -238,6 +295,8 @@ export function computeAnalytics(entries, habits, upToDate) {
     globalStreak,
     perHabit,
     timeline,
+    badgeTimeline,
+    dailyBadge,
     generatedForDate: upToDate,
     habitCount: habitMap.size,
   }

@@ -1124,3 +1124,304 @@ button:focus-visible {
     padding: 3px 2px;
   }
 }
+
+.ember-root {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 16px;
+  max-width: 1980px;
+  margin: 0 auto;
+}
+
+.side-nav {
+  padding: 16px;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  height: fit-content;
+}
+
+.brand-block h1 {
+  margin: 0 0 8px;
+  font-size: 1.5rem;
+}
+
+.nav-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-start;
+  width: 100%;
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.nav-item.active {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.nav-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 8px 0;
+}
+
+.main-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.day-header {
+  padding: 14px;
+  display: grid;
+  grid-template-columns: minmax(240px, auto) minmax(240px, 1fr) minmax(240px, auto);
+  gap: 12px;
+  align-items: center;
+}
+
+.day-header-left {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.day-header-center {
+  text-align: center;
+}
+
+.day-header-center h2 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.day-header-center p {
+  margin: 2px 0 8px;
+  color: #475569;
+}
+
+.score-line {
+  display: grid;
+  gap: 6px;
+}
+
+.score-value {
+  font-weight: 700;
+}
+
+.score-bar-wrap {
+  height: 10px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.score-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ef4444, #f59e0b, #22c55e);
+}
+
+.badge-pill {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: #fff;
+  font-weight: 700;
+}
+
+.day-header-right {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
+.date-nav-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.date-nav-inline input[type='date'] {
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+.day-state {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+.day-state.open {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.day-state.locked {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.continuity-banner {
+  padding: 12px;
+  border-left: 4px solid #f59e0b;
+  background: #fffbeb;
+}
+
+.continuity-banner p {
+  margin: 4px 0 10px;
+}
+
+.day-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.polarity-column {
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.polarity-column h3 {
+  margin: 0;
+}
+
+.bad-column {
+  border-top: 4px solid #ef4444;
+}
+
+.good-column {
+  border-top: 4px solid #22c55e;
+}
+
+.group-block h4 {
+  margin: 0 0 8px;
+  color: #334155;
+  font-size: 0.95rem;
+}
+
+.habit-stack {
+  display: grid;
+  gap: 8px;
+}
+
+.habit-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+}
+
+.habit-item h5 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.habit-sub {
+  margin: 2px 0 0;
+  color: #475569;
+  font-size: 0.8rem;
+}
+
+.habit-bad {
+  border-color: #fecaca;
+  background: #fff5f5;
+}
+
+.habit-good {
+  border-color: #bbf7d0;
+  background: #f4fff7;
+}
+
+.empty-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.stats-layout {
+  display: grid;
+  gap: 12px;
+}
+
+.stats-top,
+.badge-grid-card,
+.history-panel,
+.timeline-card {
+  padding: 14px;
+}
+
+.stats-top h3,
+.badge-grid-card h3,
+.history-panel h3,
+.timeline-card h3 {
+  margin: 0 0 8px;
+}
+
+.badge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(24px, 1fr));
+  gap: 4px;
+}
+
+.badge-cell {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 0.8rem;
+  color: #fff;
+}
+
+.history-habit-header h4 {
+  margin: 0;
+}
+
+.history-stats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+@media (max-width: 1200px) {
+  .ember-root {
+    grid-template-columns: 1fr;
+  }
+
+  .day-header {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  .day-header-center {
+    text-align: left;
+  }
+
+  .day-header-right {
+    justify-items: start;
+  }
+
+  .date-nav-inline {
+    justify-content: flex-start;
+  }
+
+  .day-grid {
+    grid-template-columns: 1fr;
+  }
+}
