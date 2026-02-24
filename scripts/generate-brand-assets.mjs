@@ -51,13 +51,13 @@ const renderWithBackground = async (size, markScale = 0.62) => {
 
 const windowPng = await renderWithBackground(windowPngSize, 0.62)
 
-await fs.writeFile(path.join(iconDir, 'pixcope-icon.png'), windowPng)
+await fs.writeFile(path.join(iconDir, 'embers-icon.png'), windowPng)
 
 const icoBuffers = await Promise.all(
   iconSizes.map((size) => renderWithBackground(size, 0.62)),
 )
 
 const icoBuffer = await toIco(icoBuffers)
-await fs.writeFile(path.join(iconDir, 'pixcope-icon.ico'), icoBuffer)
+await fs.writeFile(path.join(iconDir, 'embers-icon.ico'), icoBuffer)
 
 console.log('Generated branded icon assets in assets/icons')

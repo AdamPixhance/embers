@@ -16,13 +16,21 @@
         "max_count",
         "tooltip",
         "active",
-        "sort_order"
+        "sort_order",
+        "schedule_type",
+        "schedule_days",
+        "active_from",
+        "inactive_from"
       ],
       "typeValues": ["toggle", "counter"],
       "notes": {
         "group_id": "must match a value from Groups.group_id",
         "polarity": "good or bad; controls left/right split in day view",
-        "active": "1 = enabled, 0 = hidden"
+        "active": "1 = enabled, 0 = hidden",
+        "schedule_type": "daily, weekdays, weekends, or custom",
+        "schedule_days": "comma-separated abbreviations (Mon, Wed, Fri) when custom",
+        "active_from": "optional YYYY-MM-DD start date",
+        "inactive_from": "optional YYYY-MM-DD end date (exclusive)"
       }
     },
     "Groups": {
@@ -46,6 +54,14 @@
         "meaning",
         "example_use_case"
       ],
+      "optional": true
+    },
+    "Schedule Options": {
+      "requiredColumns": ["schedule_type", "description", "uses_schedule_days"],
+      "optional": true
+    },
+    "Schedule Days": {
+      "requiredColumns": ["day_abbr", "day_name"],
       "optional": true
     }
   }

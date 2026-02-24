@@ -1,20 +1,26 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   BarChart3,
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
   Download,
   FolderOpen,
+  Flame,
   Home,
   Info,
+  Lock,
   LockOpen,
+  Menu,
   Minus,
   Plus,
   RefreshCw,
   Save,
+  ShieldAlert,
+  Target,
+  TriangleAlert,
 } from 'lucide-react'
 import './App.css'
+import embersMark from './assets/embers-mark.svg'
 
 type Group = {
   groupId: string
@@ -45,6 +51,10 @@ type Habit = {
   tooltip: string
   active: boolean
   sortOrder: number
+  scheduleType: string
+  scheduleDays: string
+  activeFrom: string
+  inactiveFrom: string
 }
 
 type WorkbookPayload = {
@@ -60,6 +70,13 @@ type AnalyticsPayload = {
   qualifiedHabitsForDay: number
   totalHabits: number
   globalStreak: number
+  signStreak: number
+  signStreakIsPositive: boolean
+  averages: {
+    days7: number
+    days30: number
+    days365: number
+  }
   perHabit: Array<{
     habitId: string
     label: string
@@ -82,27 +99,6 @@ type AnalyticsPayload = {
   generatedForDate: string
 }
 
-type HabitHistoryItem = {
-  habitId: string
-  label: string
-  type: 'toggle' | 'counter'
-  scorePerUnit: number
-  streakMinCount: number
-  totalCount: number
-  totalScore: number
-  daysActive: number
-  dailyRecords: Array<{
-    date: string
-    count: number
-    qualified: boolean
-    score: number
-  }>
-}
-
-type HistoryPayload = {
-  habits: HabitHistoryItem[]
-}
-
 type DayPayload = {
   date: string
   counts: Record<string, number>
@@ -118,6 +114,13 @@ type OpenDayPayload = {
   } | null
 }
 
+type BadgeMapItem = {
+  date: string
+  score: number
+  badge: Badge | null
+  hasProgress: boolean
+}
+
 const desktopApiBase =
   typeof window !== 'undefined' && 'embersApiBase' in window
     ? String((window as Window & { embersApiBase?: string }).embersApiBase ?? '')
@@ -125,6 +128,7 @@ const desktopApiBase =
 
 const apiUrl = (path: string) => `${desktopApiBase}${path}`
 const todayIso = () => new Date().toISOString().slice(0, 10)
+const WEEKDAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 function shiftDate(dateIso: string, deltaDays: number) {
   const date = new Date(`${dateIso}T00:00:00`)
@@ -144,6 +148,58 @@ function formatDayHeading(dateIso: string) {
   }
 }
 
+function areCountsEqual(left: Record<string, number>, right: Record<string, number>) {
+  const leftKeys = Object.keys(left)
+  const rightKeys = Object.keys(right)
+  if (leftKeys.length !== rightKeys.length) return false
+  for (const key of leftKeys) {
+    if (Number(left[key]) !== Number(right[key])) return false
+  }
+  return true
+}
+
+function parseScheduleDays(raw: string) {
+  return raw
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function isHabitActiveOnDate(habit: Habit, dateIso: string) {
+  if (!habit.active) return false
+  if (habit.activeFrom && dateIso < habit.activeFrom) return false
+  if (habit.inactiveFrom && dateIso >= habit.inactiveFrom) return false
+
+  const scheduleType = String(habit.scheduleType || 'daily').toLowerCase()
+  if (scheduleType === 'daily') return true
+
+  const date = new Date(`${dateIso}T00:00:00`)
+  const weekday = date.getDay()
+
+  if (scheduleType === 'weekdays') return weekday >= 1 && weekday <= 5
+  if (scheduleType === 'weekends') return weekday === 0 || weekday === 6
+  if (scheduleType === 'custom') {
+    const allowed = new Set(parseScheduleDays(habit.scheduleDays || ''))
+    return allowed.has(WEEKDAY_ABBR[weekday])
+  }
+
+  return true
+}
+
+function filterHabitsForDate(habits: Habit[], dateIso: string) {
+  return habits.filter((habit) => isHabitActiveOnDate(habit, dateIso))
+}
+
+function buildRange(start: Date, end: Date) {
+  const days: string[] = []
+  const cursor = new Date(start)
+  while (cursor <= end) {
+    days.push(cursor.toISOString().slice(0, 10))
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return days
+}
+
 function App() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -155,11 +211,24 @@ function App() {
   const [analytics, setAnalytics] = useState<AnalyticsPayload | null>(null)
   const [dayLocked, setDayLocked] = useState(false)
   const [dayCompletedAt, setDayCompletedAt] = useState<string | null>(null)
-  const [habitHistory, setHabitHistory] = useState<HabitHistoryItem[]>([])
   const [resetting, setResetting] = useState(false)
   const [exportingBackup, setExportingBackup] = useState(false)
   const [resetAcknowledged, setResetAcknowledged] = useState(false)
+  const [showResetModal, setShowResetModal] = useState(false)
   const [openDayInProgress, setOpenDayInProgress] = useState<string | null>(null)
+  const [isNavExpanded, setIsNavExpanded] = useState(false)
+  const [isFocusMode, setIsFocusMode] = useState(false)
+  const [showOpenDayDialog, setShowOpenDayDialog] = useState(false)
+  const [openDayTarget, setOpenDayTarget] = useState<string | null>(null)
+  const [showSnapshotModal, setShowSnapshotModal] = useState(false)
+  const [snapshotDone, setSnapshotDone] = useState<string[]>([])
+  const [snapshotMissed, setSnapshotMissed] = useState<string[]>([])
+  const [badgeWeek, setBadgeWeek] = useState<Record<string, BadgeMapItem>>({})
+  const [badgeMonth, setBadgeMonth] = useState<Record<string, BadgeMapItem>>({})
+  const [badgeYear, setBadgeYear] = useState<Record<string, BadgeMapItem>>({})
+  const [showClosePrompt, setShowClosePrompt] = useState(false)
+  const [lastSavedCounts, setLastSavedCounts] = useState<Record<string, number>>({})
+  const allowCloseRef = useRef(false)
 
   const loadWorkbookData = async () => {
     const response = await fetch(apiUrl('/api/data'))
@@ -193,6 +262,7 @@ function App() {
     setCounts(next)
     setDayLocked(body.locked)
     setDayCompletedAt(body.completedAt)
+    setLastSavedCounts(next)
   }
 
   const refreshAnalytics = async (dateIso: string) => {
@@ -202,18 +272,26 @@ function App() {
     setAnalytics(payload)
   }
 
-  const loadHabitHistory = async () => {
-    const response = await fetch(apiUrl('/api/analytics/history'))
-    if (!response.ok) throw new Error('Failed to load habit history')
-    const payload = (await response.json()) as HistoryPayload
-    setHabitHistory(payload.habits)
+  const loadBadgeRange = async (start: string, end: string) => {
+    const response = await fetch(apiUrl(`/api/analytics/badges?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`))
+    if (!response.ok) throw new Error('Failed to load badge range')
+    return (await response.json()) as { badgeMap: Record<string, BadgeMapItem> }
+  }
+
+  const toggleFocusMode = async () => {
+    if (!isFocusMode) {
+      await goToDate(todayIso())
+      setView('day')
+      setIsNavExpanded(false)
+    }
+    setIsFocusMode((previous) => !previous)
   }
 
   const goToDate = async (nextDate: string) => {
     const openDay = await loadOpenDayInProgress(todayIso())
     if (openDay && openDay !== nextDate) {
-      setError(`You have an open day in progress (${openDay}). Complete it before editing another day.`)
-      setSelectedDate(openDay)
+      setOpenDayTarget(openDay)
+      setShowOpenDayDialog(true)
       return
     }
 
@@ -237,9 +315,12 @@ function App() {
 
       await refreshAnalytics(selectedDate)
       await loadOpenDayInProgress(todayIso())
+      setLastSavedCounts({ ...counts })
       setError('')
+      return true
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed')
+      return false
     } finally {
       setSaving(false)
     }
@@ -260,6 +341,19 @@ function App() {
       setDayCompletedAt(body.completedAt)
       await refreshAnalytics(selectedDate)
       await loadOpenDayInProgress(todayIso())
+      setLastSavedCounts({ ...counts })
+
+      const done: string[] = []
+      const missed: string[] = []
+      const habits = filterHabitsForDate(data?.habits ?? [], selectedDate)
+      for (const habit of habits) {
+        const current = counts[habit.habitId] ?? 0
+        if (current >= habit.streakMinCount) done.push(habit.label)
+        else missed.push(habit.label)
+      }
+      setSnapshotDone(done)
+      setSnapshotMissed(missed)
+      setShowSnapshotModal(true)
       setError('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Complete failed')
@@ -277,6 +371,7 @@ function App() {
       setDayLocked(body.locked)
       setDayCompletedAt(body.completedAt)
       await loadOpenDayInProgress(todayIso())
+      setLastSavedCounts({ ...counts })
       setError('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unlock failed')
@@ -309,16 +404,8 @@ function App() {
   }
 
   const resetAppData = async () => {
-    const firstConfirmation = window.confirm(
-      '⚠️ DANGER: This will permanently delete all your personal habits, daily logs, streaks, timeline history, and local app data.\n\nThis cannot be undone.\n\nDo you want to continue?'
-    )
-    if (!firstConfirmation) return
-
-    const secondConfirmation = window.prompt(
-      'Final confirmation required.\n\nType exactly: DELETE ALL DATA\n\nThis will reset the app to default placeholders.'
-    )
-    if (secondConfirmation !== 'DELETE ALL DATA') {
-      setError('Reset cancelled. Confirmation phrase did not match.')
+    if (!resetAcknowledged) {
+      setError('Please acknowledge the warning before resetting.')
       return
     }
 
@@ -334,12 +421,13 @@ function App() {
       const date = todayIso()
       setSelectedDate(date)
       setView('day')
-      setHabitHistory([])
       const workbook = await loadWorkbookData()
       await hydrateCountsForDate(workbook, date)
       await refreshAnalytics(date)
       await loadOpenDayInProgress(date)
       setResetAcknowledged(false)
+      setShowResetModal(false)
+      setLastSavedCounts({})
       setError('')
       window.alert('App reset complete. All personal data was deleted and default placeholder habits were restored.')
     } catch (err) {
@@ -363,7 +451,8 @@ function App() {
         await refreshAnalytics(initialDate)
 
         if (openDay && openDay !== today) {
-          setError(`You have a day in progress from ${openDay}. Complete it before editing another day.`)
+          setOpenDayTarget(openDay)
+          setShowOpenDayDialog(true)
         } else {
           setError('')
         }
@@ -389,17 +478,64 @@ function App() {
 
   useEffect(() => {
     if (view !== 'stats') return
-    loadHabitHistory().catch((err) => {
-      setError(err instanceof Error ? err.message : 'Failed to load stats')
-    })
-  }, [view])
+    const anchor = new Date(`${selectedDate}T00:00:00`)
+    const weekStart = new Date(anchor)
+    weekStart.setDate(anchor.getDate() - anchor.getDay())
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekStart.getDate() + 6)
+
+    const monthStart = new Date(anchor.getFullYear(), anchor.getMonth(), 1)
+    const nextMonthStart = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1)
+    const monthEnd = new Date(nextMonthStart)
+    monthEnd.setDate(nextMonthStart.getDate() - 1)
+
+    const yearStart = new Date(anchor.getFullYear(), 0, 1)
+    const yearEnd = new Date(anchor.getFullYear(), 11, 31)
+
+    Promise.all([
+      loadBadgeRange(weekStart.toISOString().slice(0, 10), weekEnd.toISOString().slice(0, 10)),
+      loadBadgeRange(monthStart.toISOString().slice(0, 10), monthEnd.toISOString().slice(0, 10)),
+      loadBadgeRange(yearStart.toISOString().slice(0, 10), yearEnd.toISOString().slice(0, 10)),
+    ])
+      .then(([week, month, year]) => {
+        setBadgeWeek(week.badgeMap ?? {})
+        setBadgeMonth(month.badgeMap ?? {})
+        setBadgeYear(year.badgeMap ?? {})
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : 'Failed to load stats')
+      })
+  }, [view, selectedDate])
+
+  useEffect(() => {
+    if (!isFocusMode) return
+    if (view !== 'day') setView('day')
+  }, [isFocusMode, view])
+
+  const isDirty = useMemo(() => !areCountsEqual(counts, lastSavedCounts), [counts, lastSavedCounts])
+
+  useEffect(() => {
+    const handler = (event: BeforeUnloadEvent) => {
+      if (allowCloseRef.current) return
+      if (!isDirty) return
+      event.preventDefault()
+      setShowClosePrompt(true)
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [isDirty])
+
+  const habitsForSelectedDate = useMemo(() => {
+    return filterHabitsForDate(data?.habits ?? [], selectedDate)
+  }, [data, selectedDate])
 
   const groupedByPolarity = useMemo(() => {
     const map = new Map<string, { group: Group; good: Habit[]; bad: Habit[] }>()
     const groupMap = new Map((data?.groups ?? []).map((group) => [group.groupId, group]))
     const fallbackGroup: Group = { groupId: 'other', groupLabel: 'Other', sortOrder: 9999 }
 
-    for (const habit of data?.habits ?? []) {
+    for (const habit of habitsForSelectedDate) {
       const group = groupMap.get(habit.groupId) ?? fallbackGroup
       if (!map.has(group.groupId)) {
         map.set(group.groupId, { group, good: [], bad: [] })
@@ -416,8 +552,9 @@ function App() {
         good: entry.good.sort((left, right) => left.sortOrder - right.sortOrder),
         bad: entry.bad.sort((left, right) => left.sortOrder - right.sortOrder),
       }))
+      .filter((entry) => entry.good.length > 0 || entry.bad.length > 0)
       .sort((left, right) => left.group.sortOrder - right.group.sortOrder)
-  }, [data])
+  }, [data, habitsForSelectedDate])
 
   const progressModel = useMemo(() => {
     if (!data) return { score: 0, min: 0, max: 1, percent: 50 }
@@ -426,7 +563,7 @@ function App() {
     let max = 0
     let score = 0
 
-    for (const habit of data.habits) {
+    for (const habit of habitsForSelectedDate) {
       const current = counts[habit.habitId] ?? 0
       score += current * habit.scorePerUnit
 
@@ -439,9 +576,26 @@ function App() {
     const span = Math.max(0.0001, max - min)
     const percent = Math.max(0, Math.min(100, ((score - min) / span) * 100))
     return { score, min, max, percent }
-  }, [data, counts])
+  }, [data, counts, habitsForSelectedDate])
+
+  const liveBadge = useMemo(() => {
+    const badges = [...(data?.badges ?? [])]
+      .filter((badge) => badge.active)
+      .sort((left, right) => left.minScore - right.minScore || left.sortOrder - right.sortOrder)
+
+    let matched: Badge | null = null
+    for (const badge of badges) {
+      if (progressModel.score >= badge.minScore) matched = badge
+    }
+    return matched
+  }, [data, progressModel.score])
 
   const setHabitCount = (habit: Habit, nextCount: number) => {
+    if (openDayInProgress && openDayInProgress !== selectedDate) {
+      setOpenDayTarget(openDayInProgress)
+      setShowOpenDayDialog(true)
+      return
+    }
     const bounded = Math.max(habit.minCount, Math.min(habit.maxCount, nextCount))
     setCounts((previous) => ({
       ...previous,
@@ -490,6 +644,14 @@ function App() {
     )
   }
 
+  const streakMap = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const habitStreak of analytics?.perHabit ?? []) {
+      map.set(habitStreak.habitId, habitStreak.currentStreak)
+    }
+    return map
+  }, [analytics])
+
   if (loading) {
     return <div className="screen center">Loading Embers…</div>
   }
@@ -497,28 +659,53 @@ function App() {
   const dayHeading = formatDayHeading(selectedDate)
   const readOnlyDay = dayLocked || selectedDate > todayIso()
 
-  return (
-    <div className="screen ember-root">
-      <aside className="side-nav card" aria-label="Main navigation">
-        <div className="brand-block">
-          <h1>Embers</h1>
-        </div>
+  const miniActivity = useMemo(() => {
+    const timeline = analytics?.badgeTimeline ?? []
+    const map = new Map(timeline.map((item) => [item.date, item]))
+    const last7: BadgeMapItem[] = []
+    const cursor = new Date(`${selectedDate}T00:00:00`)
+    for (let i = 6; i >= 0; i -= 1) {
+      const day = new Date(cursor)
+      day.setDate(cursor.getDate() - i)
+      const iso = day.toISOString().slice(0, 10)
+      const entry = map.get(iso)
+      last7.push({
+        date: iso,
+        score: entry?.score ?? 0,
+        badge: entry?.badge ?? null,
+        hasProgress: entry ? true : false,
+      })
+    }
+    return last7
+  }, [analytics, selectedDate])
 
+  return (
+    <div
+      className={`screen ember-root ${isNavExpanded ? 'nav-expanded' : 'nav-collapsed'}${isFocusMode ? ' focus-mode' : ''}`}
+    >
+      <aside className={`side-nav card ${isNavExpanded ? 'expanded' : 'collapsed'}`} aria-label="Main navigation">
         <button
           type="button"
-          className={`nav-item ${view === 'day' ? 'active' : ''}`}
-          onClick={() => setView('day')}
-          title="Day view"
+          className="nav-toggle"
+          onClick={() => setIsNavExpanded((previous) => !previous)}
+          title={isNavExpanded ? 'Collapse navigation' : 'Expand navigation'}
         >
-          <Home size={17} /> Day
+          <Menu size={18} />
         </button>
-        <button
-          type="button"
-          className={`nav-item ${view === 'stats' ? 'active' : ''}`}
-          onClick={() => setView('stats')}
-          title="Stats"
-        >
-          <BarChart3 size={17} /> Stats
+
+        <button type="button" className="brand-logo" onClick={() => setView('day')} title="Embers home">
+          <img src={embersMark} alt="Embers" className="brand-icon" />
+          {isNavExpanded ? <span className="nav-label">Embers</span> : null}
+        </button>
+
+        <button type="button" className={`nav-item ${view === 'day' ? 'active' : ''}`} onClick={() => setView('day')} title="Day view">
+          <Home size={17} />
+          {isNavExpanded ? <span className="nav-label">Day</span> : null}
+        </button>
+
+        <button type="button" className={`nav-item ${view === 'stats' ? 'active' : ''}`} onClick={() => setView('stats')} title="Stats">
+          <BarChart3 size={17} />
+          {isNavExpanded ? <span className="nav-label">Stats</span> : null}
         </button>
 
         <div className="nav-divider" />
@@ -542,7 +729,8 @@ function App() {
           }}
           title="Refresh workbook"
         >
-          <RefreshCw size={17} /> Refresh
+          <RefreshCw size={17} />
+          {isNavExpanded ? <span className="nav-label">Refresh</span> : null}
         </button>
 
         <button
@@ -554,7 +742,8 @@ function App() {
           }}
           title="Open workbook"
         >
-          <FolderOpen size={17} /> Workbook
+          <FolderOpen size={17} />
+          {isNavExpanded ? <span className="nav-label">Workbook</span> : null}
         </button>
 
         <button
@@ -564,90 +753,132 @@ function App() {
           disabled={exportingBackup || resetting || loading || saving}
           title="Export CSV"
         >
-          <Download size={17} /> Export
+          <Download size={17} />
+          {isNavExpanded ? <span className="nav-label">Export</span> : null}
         </button>
       </aside>
 
       <main className="main-panel">
         <header className="day-header card">
-          <div className="day-header-left">
-            <button
-              type="button"
-              className="primary-button"
-              onClick={saveDay}
-              disabled={saving || readOnlyDay}
-            >
-              <Save size={16} /> {saving ? 'Saving…' : 'Save day'}
-            </button>
-
-            <button
-              type="button"
-              className="primary-button"
-              onClick={completeDay}
-              disabled={saving || readOnlyDay}
-            >
+          <div className="header-controls-row">
+            <button type="button" className="complete-button" onClick={completeDay} disabled={saving || readOnlyDay}>
               Complete day
             </button>
 
             <button
               type="button"
-              className="ghost-button"
-              onClick={unlockCurrentDay}
-              disabled={saving || !dayLocked || selectedDate > todayIso()}
+              className="icon-action save-action"
+              onClick={saveDay}
+              disabled={saving || readOnlyDay}
+              title={saving ? 'Saving' : 'Save day'}
+              aria-label={saving ? 'Saving day' : 'Save day'}
             >
-              <LockOpen size={16} /> Unlock day
+              <Save size={16} />
             </button>
-          </div>
 
-          <div className="day-header-center">
-            <h2>{dayHeading.dayName}</h2>
-            <p>{dayHeading.fullDate}</p>
-            <div className="score-line">
+            {dayLocked ? (
+              <button
+                type="button"
+                className="icon-action unlock-action"
+                onClick={unlockCurrentDay}
+                disabled={saving || selectedDate > todayIso()}
+                title="Unlock day"
+                aria-label="Unlock day"
+              >
+                <LockOpen size={16} />
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="icon-action lock-action"
+                disabled
+                title="Day remains open until completed"
+                aria-label="Day is open"
+              >
+                <Lock size={16} />
+              </button>
+            )}
+
+            <button
+              type="button"
+              className={`icon-action focus-action ${isFocusMode ? 'is-on' : ''}`}
+              onClick={() => {
+                toggleFocusMode().catch((err) => {
+                  setError(err instanceof Error ? err.message : 'Unable to toggle focus mode')
+                })
+              }}
+              title={isFocusMode ? 'Exit focus mode' : 'Enter focus mode'}
+              aria-label={isFocusMode ? 'Exit focus mode' : 'Enter focus mode'}
+            >
+              <Target size={16} />
+            </button>
+
+            <div className="day-nav-inline">
+              <button type="button" className="icon-action" onClick={() => goToDate(shiftDate(selectedDate, -1))} title="Previous day">
+                <ChevronLeft size={16} />
+              </button>
+              <button type="button" className="today-pill" onClick={() => goToDate(todayIso())}>
+                Today
+              </button>
+              <button
+                type="button"
+                className="icon-action"
+                disabled={selectedDate >= todayIso()}
+                onClick={() => goToDate(shiftDate(selectedDate, 1))}
+                title="Next day"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+
+            <div className="day-heading-block">
+              <h2>{dayHeading.dayName}</h2>
+              <p>{dayHeading.fullDate}</p>
+            </div>
+
+            <div className="score-and-state">
               <div className="score-value">Score {progressModel.score.toFixed(1)}</div>
               <div className="score-bar-wrap">
                 <div className="score-bar-fill" style={{ width: `${progressModel.percent}%` }} />
               </div>
-            </div>
-            {analytics?.dailyBadge ? (
-              <div className="badge-pill" style={{ backgroundColor: analytics.dailyBadge.colorHex }}>
-                <span>{analytics.dailyBadge.icon}</span>
-                <span>{analytics.dailyBadge.displayName}</span>
+              <div className="score-substats">
+                <div className="score-average">
+                  7-day avg: <strong>{analytics?.averages?.days7.toFixed(1) ?? '0.0'}</strong>
+                </div>
+                <div className="mini-activity">
+                  {miniActivity.map((item) => (
+                    <span
+                      key={item.date}
+                      className="mini-activity-cell"
+                      style={{ backgroundColor: item.badge?.colorHex ?? '#e2e8f0' }}
+                      title={`${item.date} • ${item.badge?.displayName ?? 'No badge'} • Score ${item.score.toFixed(1)}`}
+                    />
+                  ))}
+                </div>
               </div>
-            ) : null}
-          </div>
-
-          <div className="day-header-right">
-            <div className="date-nav-inline">
-              <button type="button" className="counter-btn" onClick={() => goToDate(shiftDate(selectedDate, -1))}>
-                <ChevronLeft size={16} />
-              </button>
-              <button
-                type="button"
-                className="counter-btn"
-                disabled={selectedDate >= todayIso()}
-                onClick={() => goToDate(shiftDate(selectedDate, 1))}
-              >
-                <ChevronRight size={16} />
-              </button>
-              <button type="button" className="ghost-button" onClick={() => goToDate(todayIso())}>
-                <CalendarDays size={15} /> Today
-              </button>
-              <input
-                type="date"
-                value={selectedDate}
-                max={todayIso()}
-                onChange={(event) => {
-                  goToDate(event.target.value).catch((err) => {
-                    setError(err instanceof Error ? err.message : 'Date change failed')
-                  })
-                }}
-              />
-            </div>
-
-            <div className={`day-state ${dayLocked ? 'locked' : 'open'}`}>
-              {dayLocked
-                ? `Locked${dayCompletedAt ? ` • ${new Date(dayCompletedAt).toLocaleString()}` : ''}`
-                : 'Open day'}
+              {liveBadge ? (
+                <div className="badge-pill" style={{ backgroundColor: liveBadge.colorHex }}>
+                  <span>{liveBadge.icon}</span>
+                  <span>{liveBadge.displayName}</span>
+                </div>
+              ) : null}
+              {analytics && analytics.signStreak > 0 ? (
+                <div className="sign-streak">
+                  <span className="tooltip-wrap">
+                    <span className="streak-icon">
+                      {analytics.signStreakIsPositive ? <Flame size={16} /> : <TriangleAlert size={16} />}
+                    </span>
+                    <span className="tooltip-bubble">
+                      {analytics.signStreakIsPositive ? 'Positive streak' : 'Negative streak'}: {analytics.signStreak} day(s)
+                    </span>
+                  </span>
+                </div>
+              ) : null}
+              <div className={`day-state ${dayLocked ? 'locked' : 'open'}`}>
+                {dayLocked
+                  ? `Locked${dayCompletedAt ? ` • ${new Date(dayCompletedAt).toLocaleString()}` : ''}`
+                  : 'Open day'}
+              </div>
             </div>
           </div>
         </header>
@@ -660,12 +891,11 @@ function App() {
               type="button"
               className="ghost-button"
               onClick={() => {
-                goToDate(openDayInProgress).catch((err) => {
-                  setError(err instanceof Error ? err.message : 'Failed to open in-progress day')
-                })
+                setOpenDayTarget(openDayInProgress)
+                setShowOpenDayDialog(true)
               }}
             >
-              Go to open day
+              Resolve open day
             </button>
           </section>
         ) : null}
@@ -677,68 +907,82 @@ function App() {
         ) : null}
 
         {view === 'day' ? (
-          <section className="day-grid">
-            <article className="card polarity-column bad-column">
-              <h3>Bad habits to break</h3>
-              {groupedByPolarity.map((entry) => (
-                <div key={`bad-${entry.group.groupId}`} className="group-block">
-                  <h4>{entry.group.groupLabel}</h4>
-                  <div className="habit-stack">
-                    {entry.bad.length === 0 ? <p className="empty-hint">No bad habits in this group.</p> : null}
-                    {entry.bad.map((habit) => {
-                      const score = (counts[habit.habitId] ?? 0) * habit.scorePerUnit
-                      return (
-                        <div key={habit.habitId} className="habit-item habit-bad">
-                          <div>
-                            <div className="habit-title-row">
-                              <h5>{habit.label}</h5>
-                              {habit.tooltip ? (
-                                <span className="info-pill" title={habit.tooltip}>
-                                  <Info size={13} />
-                                </span>
-                              ) : null}
-                            </div>
-                            <p className="habit-sub">Score {score.toFixed(1)}</p>
-                          </div>
-                          {renderHabitControl(habit)}
-                        </div>
-                      )
-                    })}
-                  </div>
+          <section className="group-rows">
+            {groupedByPolarity.map((entry) => (
+              <article key={entry.group.groupId} className="group-row card">
+                <div className="group-side-label" aria-label={`Group ${entry.group.groupLabel}`}>
+                  <span>{entry.group.groupLabel}</span>
                 </div>
-              ))}
-            </article>
 
-            <article className="card polarity-column good-column">
-              <h3>Good habits to build</h3>
-              {groupedByPolarity.map((entry) => (
-                <div key={`good-${entry.group.groupId}`} className="group-block">
-                  <h4>{entry.group.groupLabel}</h4>
-                  <div className="habit-stack">
-                    {entry.good.length === 0 ? <p className="empty-hint">No good habits in this group.</p> : null}
-                    {entry.good.map((habit) => {
-                      const score = (counts[habit.habitId] ?? 0) * habit.scorePerUnit
-                      return (
-                        <div key={habit.habitId} className="habit-item habit-good">
-                          <div>
-                            <div className="habit-title-row">
-                              <h5>{habit.label}</h5>
-                              {habit.tooltip ? (
-                                <span className="info-pill" title={habit.tooltip}>
-                                  <Info size={13} />
+                <div className="row-column bad-column">
+                  {entry.bad.map((habit) => {
+                    const score = (counts[habit.habitId] ?? 0) * habit.scorePerUnit
+                    const streak = streakMap.get(habit.habitId) ?? 0
+                    return (
+                      <div key={habit.habitId} className="habit-item habit-bad">
+                        <div>
+                          <div className="habit-title-row">
+                            <h5>{habit.label}</h5>
+                            {streak >= 2 ? (
+                              <span className="tooltip-wrap">
+                                <span className="streak-icon">
+                                  <Flame size={14} />
                                 </span>
-                              ) : null}
-                            </div>
-                            <p className="habit-sub">Score {score.toFixed(1)}</p>
+                                <span className="tooltip-bubble">Streak: {streak} days</span>
+                              </span>
+                            ) : null}
+                            {habit.tooltip?.trim() ? (
+                              <span className="tooltip-wrap">
+                                <button type="button" className="info-pill" aria-label={`Info for ${habit.label}`}>
+                                  <Info size={13} />
+                                </button>
+                                <span className="tooltip-bubble">{habit.tooltip}</span>
+                              </span>
+                            ) : null}
                           </div>
-                          {renderHabitControl(habit)}
+                          <p className="habit-sub">Score {score.toFixed(1)}</p>
                         </div>
-                      )
-                    })}
-                  </div>
+                        {renderHabitControl(habit)}
+                      </div>
+                    )
+                  })}
                 </div>
-              ))}
-            </article>
+
+                <div className="row-column good-column">
+                  {entry.good.map((habit) => {
+                    const score = (counts[habit.habitId] ?? 0) * habit.scorePerUnit
+                    const streak = streakMap.get(habit.habitId) ?? 0
+                    return (
+                      <div key={habit.habitId} className="habit-item habit-good">
+                        <div>
+                          <div className="habit-title-row">
+                            <h5>{habit.label}</h5>
+                            {streak >= 2 ? (
+                              <span className="tooltip-wrap">
+                                <span className="streak-icon">
+                                  <Flame size={14} />
+                                </span>
+                                <span className="tooltip-bubble">Streak: {streak} days</span>
+                              </span>
+                            ) : null}
+                            {habit.tooltip?.trim() ? (
+                              <span className="tooltip-wrap">
+                                <button type="button" className="info-pill" aria-label={`Info for ${habit.label}`}>
+                                  <Info size={13} />
+                                </button>
+                                <span className="tooltip-bubble">{habit.tooltip}</span>
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className="habit-sub">Score {score.toFixed(1)}</p>
+                        </div>
+                        {renderHabitControl(habit)}
+                      </div>
+                    )
+                  })}
+                </div>
+              </article>
+            ))}
           </section>
         ) : (
           <section className="stats-layout">
@@ -750,72 +994,130 @@ function App() {
                   {analytics?.qualifiedHabitsForDay ?? 0}/{analytics?.totalHabits ?? 0}
                 </strong>
               </p>
+              <div className="stats-averages">
+                <div>
+                  7-day avg <strong>{analytics?.averages?.days7.toFixed(1) ?? '0.0'}</strong>
+                </div>
+                <div>
+                  30-day avg <strong>{analytics?.averages?.days30.toFixed(1) ?? '0.0'}</strong>
+                </div>
+                <div>
+                  365-day avg <strong>{analytics?.averages?.days365.toFixed(1) ?? '0.0'}</strong>
+                </div>
+              </div>
             </div>
 
             <div className="card badge-grid-card">
-              <h3>Badge timeline</h3>
-              <div className="badge-grid">
-                {(analytics?.badgeTimeline ?? []).map((item) => (
-                  <div
-                    key={item.date}
-                    className="badge-cell"
-                    title={`${item.date} • Score ${item.score.toFixed(1)} • ${item.badge?.displayName ?? 'No badge'}`}
-                    style={{ backgroundColor: item.badge?.colorHex ?? '#e2e8f0' }}
-                  >
-                    <span>{item.badge?.icon ?? '•'}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="card timeline-card">
-              <h3>Recent score trend</h3>
-              <div className="timeline-bars">
-                {(analytics?.timeline ?? []).map((item) => {
-                  const width = `${Math.max(6, (Math.abs(item.score) / Math.max(1, Math.abs(progressModel.max))) * 100)}%`
-                  const positive = item.score >= 0
+              <h3>Weekly grid</h3>
+              <div className="badge-grid github-grid">
+                {buildRange(
+                  (() => {
+                    const anchor = new Date(`${selectedDate}T00:00:00`)
+                    const start = new Date(anchor)
+                    start.setDate(anchor.getDate() - anchor.getDay())
+                    return start
+                  })(),
+                  (() => {
+                    const anchor = new Date(`${selectedDate}T00:00:00`)
+                    const start = new Date(anchor)
+                    start.setDate(anchor.getDate() - anchor.getDay())
+                    const end = new Date(start)
+                    end.setDate(start.getDate() + 6)
+                    return end
+                  })()
+                ).map((dateIso) => {
+                  const info = badgeWeek[dateIso]
                   return (
-                    <div key={item.date} className="timeline-row" title={`${item.date} • Score ${item.score.toFixed(1)}`}>
-                      <span className="timeline-date">{item.date.slice(5)}</span>
-                      <div className="timeline-track">
-                        <div className={`timeline-fill ${positive ? 'is-positive' : 'is-negative'}`} style={{ width }} />
-                      </div>
-                      <span className="timeline-score">{item.score.toFixed(1)}</span>
-                    </div>
+                    <span
+                      key={`week-${dateIso}`}
+                      className="badge-cell"
+                      title={`${dateIso} • ${info?.badge?.displayName ?? 'No badge'} • Score ${info?.score?.toFixed(1) ?? '0.0'}`}
+                      style={{ backgroundColor: info?.badge?.colorHex ?? '#e2e8f0' }}
+                    >
+                      {info?.badge?.icon ?? ''}
+                    </span>
                   )
                 })}
               </div>
             </div>
 
-            <div className="card history-panel">
-              <h3>Per-habit streaks & totals</h3>
-              <div className="history-habits">
-                {habitHistory.map((habit) => {
-                  const streak = analytics?.perHabit.find((item) => item.habitId === habit.habitId)?.currentStreak ?? 0
+            <div className="card badge-grid-card">
+              <h3>Monthly grid</h3>
+              <div className="badge-grid github-grid">
+                {buildRange(
+                  (() => {
+                    const anchor = new Date(`${selectedDate}T00:00:00`)
+                    return new Date(anchor.getFullYear(), anchor.getMonth(), 1)
+                  })(),
+                  (() => {
+                    const anchor = new Date(`${selectedDate}T00:00:00`)
+                    const nextMonth = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1)
+                    const end = new Date(nextMonth)
+                    end.setDate(nextMonth.getDate() - 1)
+                    return end
+                  })()
+                ).map((dateIso) => {
+                  const info = badgeMonth[dateIso]
                   return (
-                    <article key={habit.habitId} className="history-habit">
-                      <div className="history-habit-header">
-                        <h4>{habit.label}</h4>
-                        <div className="history-stats">
-                          <span>Streak: {streak}</span>
-                          <span>Total: {habit.totalCount}</span>
-                          <span>Score: {habit.totalScore.toFixed(1)}</span>
-                        </div>
-                      </div>
-                    </article>
+                    <span
+                      key={`month-${dateIso}`}
+                      className="badge-cell"
+                      title={`${dateIso} • ${info?.badge?.displayName ?? 'No badge'} • Score ${info?.score?.toFixed(1) ?? '0.0'}`}
+                      style={{ backgroundColor: info?.badge?.colorHex ?? '#e2e8f0' }}
+                    >
+                      {info?.badge?.icon ?? ''}
+                    </span>
                   )
                 })}
               </div>
             </div>
+
+            <div className="card badge-grid-card">
+              <h3>Yearly grid</h3>
+              <div className="badge-grid github-grid">
+                {buildRange(
+                  (() => {
+                    const anchor = new Date(`${selectedDate}T00:00:00`)
+                    return new Date(anchor.getFullYear(), 0, 1)
+                  })(),
+                  (() => {
+                    const anchor = new Date(`${selectedDate}T00:00:00`)
+                    return new Date(anchor.getFullYear(), 11, 31)
+                  })()
+                ).map((dateIso) => {
+                  const info = badgeYear[dateIso]
+                  return (
+                    <span
+                      key={`year-${dateIso}`}
+                      className="badge-cell"
+                      title={`${dateIso} • ${info?.badge?.displayName ?? 'No badge'} • Score ${info?.score?.toFixed(1) ?? '0.0'}`}
+                      style={{ backgroundColor: info?.badge?.colorHex ?? '#e2e8f0' }}
+                    >
+                      {info?.badge?.icon ?? ''}
+                    </span>
+                  )
+                })}
+              </div>
+            </div>
+
+            <section className="stats-reset-row">
+              <button type="button" className="danger-button" onClick={() => setShowResetModal(true)}>
+                Reset app and delete all personal data
+              </button>
+            </section>
           </section>
         )}
+      </main>
 
-        <section className="card danger-zone" aria-label="Danger zone">
-          <div>
-            <h2>Danger Zone</h2>
+      {showResetModal ? (
+        <div className="reset-modal-backdrop" role="presentation" onClick={() => setShowResetModal(false)}>
+          <section className="reset-modal card" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <h3>
+              <ShieldAlert size={16} /> Danger Zone
+            </h3>
             <p>
               Resetting will permanently delete all personal habits, streaks, statistics, timeline history, workbook customizations,
-              and local app data. This action is irreversible.
+              and local app data.
             </p>
             <label className="danger-checkbox">
               <input
@@ -826,27 +1128,156 @@ function App() {
               />
               <span>I understand this is irreversible and will delete all personal data.</span>
             </label>
-          </div>
-          <div className="danger-actions">
-            <button
-              type="button"
-              className="ghost-button"
-              onClick={handleExport}
-              disabled={exportingBackup || resetting || loading || saving}
-            >
-              <Download size={16} /> {exportingBackup ? 'Exporting backup…' : 'Export backup before reset'}
-            </button>
-            <button
-              type="button"
-              className="danger-button"
-              onClick={resetAppData}
-              disabled={resetting || exportingBackup || loading || saving || !resetAcknowledged}
-            >
-              {resetting ? 'Resetting…' : 'Reset app and delete all personal data'}
-            </button>
-          </div>
-        </section>
-      </main>
+
+            <div className="danger-actions modal-actions">
+              <button type="button" className="ghost-button" onClick={() => setShowResetModal(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={handleExport}
+                disabled={exportingBackup || resetting || loading || saving}
+              >
+                <Download size={16} /> {exportingBackup ? 'Exporting backup…' : 'Export backup before reset'}
+              </button>
+              <button
+                type="button"
+                className="danger-button"
+                onClick={resetAppData}
+                disabled={resetting || exportingBackup || loading || saving || !resetAcknowledged}
+              >
+                {resetting ? 'Resetting…' : 'Reset app and delete all personal data'}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {showOpenDayDialog && openDayTarget ? (
+        <div className="reset-modal-backdrop" role="presentation" onClick={() => setShowOpenDayDialog(false)}>
+          <section className="reset-modal card" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <h3>
+              <TriangleAlert size={16} /> Unfinished Day Found
+            </h3>
+            <p>
+              {openDayTarget} has progress but is still open. Continue that day or finalize it before editing other dates.
+            </p>
+            <div className="danger-actions modal-actions">
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => {
+                  setShowOpenDayDialog(false)
+                  goToDate(openDayTarget).catch((err) => {
+                    setError(err instanceof Error ? err.message : 'Failed to open day')
+                  })
+                }}
+              >
+                Continue that day
+              </button>
+              <button
+                type="button"
+                className="complete-button"
+                onClick={async () => {
+                  try {
+                    const response = await fetch(apiUrl(`/api/day/${openDayTarget}/complete`), {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({}),
+                    })
+                    if (!response.ok) throw new Error('Failed to finalize open day')
+                    setShowOpenDayDialog(false)
+                    setOpenDayInProgress(null)
+                    setSelectedDate(openDayTarget)
+                    await refreshAnalytics(openDayTarget)
+                    await loadOpenDayInProgress(todayIso())
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : 'Failed to finalize open day')
+                  }
+                }}
+              >
+                Finalize that day
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {showSnapshotModal ? (
+        <div className="reset-modal-backdrop" role="presentation" onClick={() => setShowSnapshotModal(false)}>
+          <section className="reset-modal card" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <h3>Day Snapshot</h3>
+            <div className="snapshot-grid">
+              <div>
+                <h4>Done</h4>
+                {snapshotDone.length ? (
+                  <ul>
+                    {snapshotDone.map((item) => (
+                      <li key={item}>✓ {item}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>No habits completed.</p>
+                )}
+              </div>
+              <div>
+                <h4>Not done</h4>
+                {snapshotMissed.length ? (
+                  <ul>
+                    {snapshotMissed.map((item) => (
+                      <li key={item}>• {item}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>Everything completed.</p>
+                )}
+              </div>
+            </div>
+            <div className="danger-actions modal-actions">
+              <button type="button" className="ghost-button" onClick={() => setShowSnapshotModal(false)}>
+                Close
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {showClosePrompt ? (
+        <div className="reset-modal-backdrop" role="presentation" onClick={() => setShowClosePrompt(false)}>
+          <section className="reset-modal card" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <h3>Save before closing?</h3>
+            <p>You have unsaved changes for this day. Save before closing?</p>
+            <div className="danger-actions modal-actions">
+              <button type="button" className="ghost-button" onClick={() => setShowClosePrompt(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => {
+                  allowCloseRef.current = true
+                  window.close()
+                }}
+              >
+                Close without saving
+              </button>
+              <button
+                type="button"
+                className="complete-button"
+                onClick={async () => {
+                  const ok = await saveDay()
+                  if (!ok) return
+                  allowCloseRef.current = true
+                  window.close()
+                }}
+              >
+                Save and close
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   )
 }

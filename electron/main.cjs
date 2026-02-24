@@ -51,7 +51,7 @@ async function startApiServer() {
 }
 
 function createWindow() {
-  const iconPath = path.join(app.getAppPath(), 'assets', 'icons', 'pixcope-icon.png')
+  const iconPath = path.join(app.getAppPath(), 'assets', 'icons', 'embers-icon.png')
 
   const mainWindow = new BrowserWindow({
     width: 1580,

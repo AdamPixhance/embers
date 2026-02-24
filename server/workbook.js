@@ -33,6 +33,22 @@ function extractRows(sheet) {
   return rows
 }
 
+function normalizeScheduleType(raw) {
+  const value = toText(raw).toLowerCase()
+  if (['daily', 'weekdays', 'weekends', 'custom'].includes(value)) return value
+  return 'daily'
+}
+
+function normalizeScheduleDays(raw) {
+  return toText(raw)
+}
+
+function normalizeDateValue(raw) {
+  const text = toText(raw)
+  if (!text) return ''
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : text
+}
+
 export async function loadWorkbookData() {
   const workbook = new ExcelJS.Workbook()
   await workbook.xlsx.readFile(WORKBOOK_PATH)
@@ -86,10 +102,13 @@ export async function loadWorkbookData() {
         tooltip: toText(row.getCell(10).value),
         active: toNumber(row.getCell(11).value, 1) === 1,
         sortOrder: toNumber(row.getCell(12).value, 9999),
+        scheduleType: normalizeScheduleType(row.getCell(13).value),
+        scheduleDays: normalizeScheduleDays(row.getCell(14).value),
+        activeFrom: normalizeDateValue(row.getCell(15).value),
+        inactiveFrom: normalizeDateValue(row.getCell(16).value),
       }
     })
     .filter(Boolean)
-    .filter((habit) => habit.active)
     .sort((left, right) => left.sortOrder - right.sortOrder)
 
   const badges = extractRows(badgesSheet)

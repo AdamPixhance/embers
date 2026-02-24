@@ -8,6 +8,7 @@ import { loadWorkbookData } from './workbook.js'
 import {
   completeDay,
   computeAnalytics,
+  computeBadgeMap,
   computeHabitHistory,
   findOpenDayInProgress,
   generateHabitCSV,
@@ -159,6 +160,25 @@ export async function createEmbersApi() {
     } catch (error) {
       res.status(500).json({
         message: 'Unable to compute habit history.',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      })
+    }
+  })
+
+  app.get('/api/analytics/badges', async (req, res) => {
+    try {
+      const workbook = await loadWorkbookData()
+      const entries = await listDayEntries()
+      const start = typeof req.query.start === 'string' ? req.query.start : ''
+      const end = typeof req.query.end === 'string' ? req.query.end : ''
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) {
+        return res.status(400).json({ message: 'Invalid start or end date.' })
+      }
+      const badgeMap = computeBadgeMap(entries, workbook.habits, start, end, workbook.badges)
+      res.json({ start, end, badgeMap })
+    } catch (error) {
+      res.status(500).json({
+        message: 'Unable to compute badge range.',
         details: error instanceof Error ? error.message : 'Unknown error',
       })
     }
