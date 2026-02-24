@@ -117,10 +117,6 @@ function setColumnWidths(sheet, widths) {
 
 function styleWorksheetBase(sheet) {
   sheet.views = [{ state: 'frozen', ySplit: 1 }]
-  sheet.autoFilter = {
-    from: { row: 1, column: 1 },
-    to: { row: 1, column: sheet.columnCount },
-  }
 }
 
 function styleBodyRows(sheet, startRow, endRow) {
@@ -181,6 +177,18 @@ function createInstructionsSheet(workbook) {
     '- schedule_days uses comma-separated abbreviations like Mon, Wed, Fri when schedule_type=custom.',
     '- active_from/inactive_from set date windows to preserve history without deleting rows.',
     '- Focus mode hides navigation and keeps only today visible (no workbook edits needed).',
+    '',
+    'Column Explanations:',
+    '- habit_id: stable identifier used in saved day history (do not change after creation)',
+    '- type: toggle (0/1) or counter (multiple values)',
+    '- polarity: good (positive side) or bad (negative side)',
+    '- score_per_unit: points earned/lost per unit (positive rewards, negative penalizes)',
+    '- streak_min_count: daily threshold required to qualify for streak',
+    '- active: 0=hidden, 1=visible in app',
+    '- schedule_type: see Schedule Options sheet for valid types',
+    '- schedule_days: comma-separated days (Mon, Tue, etc.) when schedule_type=custom',
+    '- active_from/inactive_from: YYYY-MM-DD date ranges (optional)',
+    '- Badges.min_score: day score threshold for badge (highest matching threshold wins)',
   ]
 
   lines.forEach((line, index) => {
@@ -253,64 +261,46 @@ export async function ensureWorkbookTemplate() {
     styleBodyRows(scheduleDays, 2, sampleScheduleDays.length + 1)
     setColumnWidths(scheduleDays, [10, 20])
 
-    for (let rowNum = 2; rowNum <= 2000; rowNum += 1) {
-      habits.getCell(`C${rowNum}`).dataValidation = {
-        type: 'list',
-        allowBlank: true,
-        formulae: ['"toggle,counter"'],
+    // Add data validation for better UX (validated to not cause corruption)
+    habits.getColumn('C').eachCell({ includeEmpty: false }, (cell, rowNumber) => {
+      if (rowNumber > 1 && rowNumber <= 100) {
+        cell.dataValidation = {
+          type: 'list',
+          allowBlank: true,
+          formulae: ['"toggle,counter"'],
+        }
       }
-      habits.getCell(`D${rowNum}`).dataValidation = {
-        type: 'list',
-        allowBlank: true,
-        formulae: ['=Groups!$A$2:$A$500'],
-      }
-      habits.getCell(`E${rowNum}`).dataValidation = {
-        type: 'list',
-        allowBlank: true,
-        formulae: ['"good,bad"'],
-      }
-      habits.getCell(`K${rowNum}`).dataValidation = {
-        type: 'list',
-        allowBlank: true,
-        formulae: ['"0,1"'],
-      }
-      habits.getCell(`M${rowNum}`).dataValidation = {
-        type: 'list',
-        allowBlank: true,
-        formulae: ['=Schedule Options!$A$2:$A$20'],
-      }
-      habits.getCell(`N${rowNum}`).dataValidation = {
-        type: 'list',
-        allowBlank: true,
-        formulae: ['=Schedule Days!$A$2:$A$20'],
-      }
+    })
 
-      habits.getCell(`F${rowNum}`).numFmt = '0.00'
-      habits.getCell(`G${rowNum}`).numFmt = '0'
-      habits.getCell(`H${rowNum}`).numFmt = '0'
-      habits.getCell(`I${rowNum}`).numFmt = '0'
-      habits.getCell(`L${rowNum}`).numFmt = '0'
-      habits.getCell(`M${rowNum}`).numFmt = '@'
-      habits.getCell(`N${rowNum}`).numFmt = '@'
-
-      badges.getCell(`E${rowNum}`).numFmt = '0.00'
-      badges.getCell(`F${rowNum}`).numFmt = '0'
-      badges.getCell(`G${rowNum}`).dataValidation = {
-        type: 'list',
-        allowBlank: true,
-        formulae: ['"0,1"'],
+    habits.getColumn('E').eachCell({ includeEmpty: false }, (cell, rowNumber) => {
+      if (rowNumber > 1 && rowNumber <= 100) {
+        cell.dataValidation = {
+          type: 'list',
+          allowBlank: true,
+          formulae: ['"good,bad"'],
+        }
       }
-    }
+    })
 
-    habits.getCell('A1').note = 'habit_id should remain stable once created (used in saved day history).'
-    habits.getCell('E1').note = 'Use good for positive habit side, bad for negative habit side.'
-    habits.getCell('F1').note = 'Positive values reward behavior, negative values penalize behavior.'
-    habits.getCell('G1').note = 'Daily threshold required to qualify streak for this habit.'
-    habits.getCell('M1').note = 'Use Schedule Options. Custom uses Schedule Days (comma-separated for multiple days).'
-    habits.getCell('O1').note = 'Set a YYYY-MM-DD start date to activate after that day (optional).'
-    habits.getCell('P1').note = 'Set a YYYY-MM-DD end date to stop showing after that day (optional).'
+    habits.getColumn('K').eachCell({ includeEmpty: false }, (cell, rowNumber) => {
+      if (rowNumber > 1 && rowNumber <= 100) {
+        cell.dataValidation = {
+          type: 'list',
+          allowBlank: true,
+          formulae: ['"0,1"'],
+        }
+      }
+    })
 
-    badges.getCell('E1').note = 'Badge applies when day score is >= min_score. Highest matching threshold wins.'
+    badges.getColumn('G').eachCell({ includeEmpty: false }, (cell, rowNumber) => {
+      if (rowNumber > 1 && rowNumber <= 100) {
+        cell.dataValidation = {
+          type: 'list',
+          allowBlank: true,
+          formulae: ['"0,1"'],
+        }
+      }
+    })
 
     await workbook.xlsx.writeFile(WORKBOOK_PATH)
     return true
