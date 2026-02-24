@@ -5,9 +5,9 @@ import toIco from 'to-ico'
 
 const rootDir = process.cwd()
 const iconDir = path.join(rootDir, 'assets', 'icons')
-const sourceSvg = path.join(rootDir, 'assets', 'brand', 'brand-mark.svg')
+const sourceSvg = path.join(rootDir, 'assets', 'brand', 'brand_mark.svg')
 
-const iconSizes = [256, 128, 64, 32]
+const iconSizes = [256, 128, 64, 48, 32, 16]
 const windowPngSize = 512
 
 await fs.mkdir(iconDir, { recursive: true })
@@ -51,13 +51,13 @@ const renderWithBackground = async (size, markScale = 0.62) => {
 
 const windowPng = await renderWithBackground(windowPngSize, 0.62)
 
-await fs.writeFile(path.join(iconDir, 'embers-icon.png'), windowPng)
+await fs.writeFile(path.join(iconDir, 'embers.png'), windowPng)
 
 const icoBuffers = await Promise.all(
   iconSizes.map((size) => renderWithBackground(size, 0.62)),
 )
 
 const icoBuffer = await toIco(icoBuffers)
-await fs.writeFile(path.join(iconDir, 'embers-icon.ico'), icoBuffer)
+await fs.writeFile(path.join(iconDir, 'embers.ico'), icoBuffer)
 
 console.log('Generated branded icon assets in assets/icons')

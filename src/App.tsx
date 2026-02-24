@@ -652,13 +652,6 @@ function App() {
     return map
   }, [analytics])
 
-  if (loading) {
-    return <div className="screen center">Loading Embers…</div>
-  }
-
-  const dayHeading = formatDayHeading(selectedDate)
-  const readOnlyDay = dayLocked || selectedDate > todayIso()
-
   const miniActivity = useMemo(() => {
     const timeline = analytics?.badgeTimeline ?? []
     const map = new Map(timeline.map((item) => [item.date, item]))
@@ -678,6 +671,13 @@ function App() {
     }
     return last7
   }, [analytics, selectedDate])
+
+  if (loading) {
+    return <div className="screen center">Loading Embers…</div>
+  }
+
+  const dayHeading = formatDayHeading(selectedDate)
+  const readOnlyDay = dayLocked || selectedDate > todayIso()
 
   return (
     <div

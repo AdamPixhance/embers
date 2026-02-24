@@ -14,7 +14,7 @@
     "dev:server": "node server/index.js",
     "build": "tsc -b && vite build",
     "brand:assets": "node scripts/generate-brand-assets.mjs",
-    "build:desktop": "npm run brand:assets && npm run build && electron-packager . Embers --platform=win32 --arch=x64 --overwrite --prune=false --asar=false --icon=assets/icons/embers-icon.ico --out=release --ignore=^/release$ --app-version=0.1.0 --app-copyright=Embers --win32metadata.CompanyName=Embers --win32metadata.FileDescription=Embers Habit App --win32metadata.OriginalFilename=Embers.exe --win32metadata.ProductName=Embers && node scripts/fix-packaged-deps.mjs",
+    "build:desktop": "npm run brand:assets && npm run build && electron-packager . Embers --platform=win32 --arch=x64 --overwrite --prune=false --asar=false --icon=assets/icons/embers.ico --out=release --ignore=^/release$ --app-version=0.1.0 --app-copyright=Embers --win32metadata.CompanyName=Embers --win32metadata.FileDescription=Embers Habit App --win32metadata.OriginalFilename=Embers.exe --win32metadata.ProductName=Embers && node scripts/fix-packaged-deps.mjs",
     "package:portable": "npm run brand:assets && npm run build && node scripts/package-app.mjs",
     "build:desktop:installer": "npm run brand:assets && npm run build && electron-builder --win",
     "shortcut:startmenu": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/create-start-menu-shortcut.ps1",
@@ -39,15 +39,15 @@
     ],
     "asar": true,
     "win": {
-      "icon": "assets/icons/embers-icon.ico",
+      "icon": "assets/icons/embers.ico",
       "forceCodeSigning": false,
       "target": [
         "portable"
       ]
     },
     "nsis": {
-      "installerIcon": "assets/icons/embers-icon.ico",
-      "uninstallerIcon": "assets/icons/embers-icon.ico",
+      "installerIcon": "assets/icons/embers.ico",
+      "uninstallerIcon": "assets/icons/embers.ico",
       "installerHeaderIcon": "assets/icons/embers-icon.ico",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,

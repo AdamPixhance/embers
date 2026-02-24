@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <title>Embers - Gradient Flame</title>
+
+  <defs>
+    <!-- Vertical rising fire gradient -->
+    <linearGradient id="fireGradient" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#FFB347"/>
+      <stop offset="50%" stop-color="#FF8C42"/>
+      <stop offset="100%" stop-color="#FF5E1A"/>
+    </linearGradient>
+  </defs>
+
+  <path fill="url(#fireGradient)" d="
+    M256 32
+    C210 90, 180 140, 168 182
+    C150 244, 178 304, 220 348
+    C248 378, 260 404, 256 440
+    C252 480, 224 512, 256 512
+    C350 512, 420 438, 420 338
+    C420 258, 374 196, 336 150
+    C310 120, 288 86, 274 54
+    C268 40, 260 34, 256 32
+    Z
+  "/>
+</svg>
