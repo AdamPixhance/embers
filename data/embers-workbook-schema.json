@@ -1,5 +1,8 @@
 {
   "sheets": {
+    "Instructions": {
+      "purpose": "User guidance for editing workbook safely"
+    },
     "Habits": {
       "requiredColumns": [
         "habit_id",
@@ -15,13 +18,27 @@
         "active",
         "sort_order"
       ],
-      "typeValues": ["toggle", "counter"]
+      "typeValues": ["toggle", "counter"],
+      "notes": {
+        "group_id": "must match a value from Groups.group_id",
+        "tags": "comma-separated tag_id values from Tag Options.tag_id",
+        "active": "1 = enabled, 0 = hidden"
+      }
     },
     "Groups": {
       "requiredColumns": ["group_id", "group_label", "sort_order"]
     },
-    "Tags": {
+    "Tag Options": {
       "requiredColumns": ["tag_id", "tag_label", "tag_color"]
+    },
+    "Category Defaults": {
+      "requiredColumns": [
+        "category",
+        "default_score_per_unit",
+        "meaning",
+        "example_use_case"
+      ],
+      "optional": true
     }
   }
 }
