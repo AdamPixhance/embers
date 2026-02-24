@@ -152,7 +152,7 @@ function shiftDate(dateIso: string, deltaDays: number) {
 
 function resolvePotentialCount(habit: Habit) {
   if (habit.type === 'toggle') return 1
-  return Math.max(habit.minCount, Math.min(habit.maxCount, 1))
+  return habit.maxCount
 }
 
 function formatDayHeading(dateIso: string) {
