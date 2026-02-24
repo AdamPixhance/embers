@@ -242,13 +242,18 @@ function resolveBadgeForScorePercent(scorePercent, badges) {
     .filter((badge) => badge?.active !== false)
     .sort((left, right) => left.minScore - right.minScore || left.sortOrder - right.sortOrder)
 
-  let winner = null
-  for (const badge of ordered) {
-    if (scorePercent >= badge.minScore) {
-      winner = badge
+  // Find the badge whose range contains the scorePercent
+  // Each badge's range is: [badge.minScore, nextBadge.minScore)
+  for (let i = 0; i < ordered.length; i++) {
+    const badge = ordered[i]
+    const nextBadge = ordered[i + 1]
+    const qualifies = scorePercent >= badge.minScore
+    const belowNext = !nextBadge || scorePercent < nextBadge.minScore
+    if (qualifies && belowNext) {
+      return badge
     }
   }
-  return winner
+  return null
 }
 
 function hasAnyProgress(dayRecord) {

@@ -643,11 +643,18 @@ function App() {
       .filter((badge) => badge.active)
       .sort((left, right) => left.minScore - right.minScore || left.sortOrder - right.sortOrder)
 
-    let matched: Badge | null = null
-    for (const badge of badges) {
-      if (progressModel.scorePercent >= badge.minScore) matched = badge
+    // Find the badge whose range contains the scorePercent
+    // Each badge's range is: [badge.minScore, nextBadge.minScore)
+    for (let i = 0; i < badges.length; i++) {
+      const badge = badges[i]
+      const nextBadge = badges[i + 1]
+      const qualifies = progressModel.scorePercent >= badge.minScore
+      const belowNext = !nextBadge || progressModel.scorePercent < nextBadge.minScore
+      if (qualifies && belowNext) {
+        return badge
+      }
     }
-    return matched
+    return null
   }, [data, progressModel.scorePercent])
 
   const setHabitCount = (habit: Habit, nextCount: number) => {
