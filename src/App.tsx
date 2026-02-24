@@ -7,7 +7,6 @@ import {
   FolderOpen,
   Flame,
   Home,
-  Info,
   Lock,
   LockOpen,
   Menu,
@@ -20,7 +19,6 @@ import {
   TriangleAlert,
 } from 'lucide-react'
 import './App.css'
-import embersMark from './assets/embers-mark.svg'
 
 type Group = {
   groupId: string
@@ -693,11 +691,6 @@ function App() {
           <Menu size={18} />
         </button>
 
-        <button type="button" className="brand-logo" onClick={() => setView('day')} title="Embers home">
-          <img src={embersMark} alt="Embers" className="brand-icon" />
-          {isNavExpanded ? <span className="nav-label">Embers</span> : null}
-        </button>
-
         <button type="button" className={`nav-item ${view === 'day' ? 'active' : ''}`} onClick={() => setView('day')} title="Day view">
           <Home size={17} />
           {isNavExpanded ? <span className="nav-label">Day</span> : null}
@@ -760,7 +753,7 @@ function App() {
 
       <main className="main-panel">
         <header className="day-header card">
-          <div className="header-controls-row">
+          <div className="header-top-row">
             <button type="button" className="complete-button" onClick={completeDay} disabled={saving || readOnlyDay}>
               Complete day
             </button>
@@ -836,50 +829,55 @@ function App() {
               <p>{dayHeading.fullDate}</p>
             </div>
 
-            <div className="score-and-state">
+            <div className={`day-state ${dayLocked ? 'locked' : 'open'}`}>
+              {dayLocked
+                ? `Locked${dayCompletedAt ? ` • ${new Date(dayCompletedAt).toLocaleString()}` : ''}`
+                : 'Open day'}
+            </div>
+          </div>
+
+          <div className="header-stats-row">
+            <div className="score-section">
               <div className="score-value">Score {progressModel.score.toFixed(1)}</div>
               <div className="score-bar-wrap">
                 <div className="score-bar-fill" style={{ width: `${progressModel.percent}%` }} />
               </div>
-              <div className="score-substats">
-                <div className="score-average">
-                  7-day avg: <strong>{analytics?.averages?.days7.toFixed(1) ?? '0.0'}</strong>
-                </div>
-                <div className="mini-activity">
-                  {miniActivity.map((item) => (
-                    <span
-                      key={item.date}
-                      className="mini-activity-cell"
-                      style={{ backgroundColor: item.badge?.colorHex ?? '#e2e8f0' }}
-                      title={`${item.date} • ${item.badge?.displayName ?? 'No badge'} • Score ${item.score.toFixed(1)}`}
-                    />
-                  ))}
-                </div>
-              </div>
-              {liveBadge ? (
-                <div className="badge-pill" style={{ backgroundColor: liveBadge.colorHex }}>
-                  <span>{liveBadge.icon}</span>
-                  <span>{liveBadge.displayName}</span>
-                </div>
-              ) : null}
-              {analytics && analytics.signStreak > 0 ? (
-                <div className="sign-streak">
-                  <span className="tooltip-wrap">
-                    <span className="streak-icon">
-                      {analytics.signStreakIsPositive ? <Flame size={16} /> : <TriangleAlert size={16} />}
-                    </span>
-                    <span className="tooltip-bubble">
-                      {analytics.signStreakIsPositive ? 'Positive streak' : 'Negative streak'}: {analytics.signStreak} day(s)
-                    </span>
-                  </span>
-                </div>
-              ) : null}
-              <div className={`day-state ${dayLocked ? 'locked' : 'open'}`}>
-                {dayLocked
-                  ? `Locked${dayCompletedAt ? ` • ${new Date(dayCompletedAt).toLocaleString()}` : ''}`
-                  : 'Open day'}
-              </div>
             </div>
+
+            <div className="score-average">
+              7-day avg: <strong>{analytics?.averages?.days7.toFixed(1) ?? '0.0'}</strong>
+            </div>
+
+            <div className="mini-activity">
+              {miniActivity.map((item) => (
+                <span
+                  key={item.date}
+                  className="mini-activity-cell"
+                  style={{ backgroundColor: item.badge?.colorHex ?? '#e2e8f0' }}
+                  title={`${item.date} • ${item.badge?.displayName ?? 'No badge'} • Score ${item.score.toFixed(1)}`}
+                />
+              ))}
+            </div>
+
+            {analytics && analytics.signStreak > 0 ? (
+              <div className="sign-streak">
+                <span className="tooltip-wrap">
+                  <span className="streak-icon">
+                    {analytics.signStreakIsPositive ? <Flame size={16} /> : <TriangleAlert size={16} />}
+                  </span>
+                  <span className="tooltip-bubble">
+                    {analytics.signStreakIsPositive ? 'Positive streak' : 'Negative streak'}: {analytics.signStreak} day(s)
+                  </span>
+                </span>
+              </div>
+            ) : null}
+
+            {liveBadge ? (
+              <div className="badge-pill" style={{ backgroundColor: liveBadge.colorHex }}>
+                <span>{liveBadge.icon}</span>
+                <span>{liveBadge.displayName}</span>
+              </div>
+            ) : null}
           </div>
         </header>
 
@@ -916,13 +914,18 @@ function App() {
 
                 <div className="row-column bad-column">
                   {entry.bad.map((habit) => {
-                    const score = (counts[habit.habitId] ?? 0) * habit.scorePerUnit
+                    const count = counts[habit.habitId] ?? 0
+                    const score = count * habit.scorePerUnit
                     const streak = streakMap.get(habit.habitId) ?? 0
+                    const scoreIndicator = score !== 0 ? ` ${score > 0 ? '+' : ''}${score.toFixed(1)}` : ''
                     return (
                       <div key={habit.habitId} className="habit-item habit-bad">
-                        <div>
+                        <div className="habit-info">
                           <div className="habit-title-row">
-                            <h5>{habit.label}</h5>
+                            <h5>
+                              {habit.label}
+                              {scoreIndicator ? <span className="score-indicator">{scoreIndicator}</span> : null}
+                            </h5>
                             {streak >= 2 ? (
                               <span className="tooltip-wrap">
                                 <span className="streak-icon">
@@ -933,14 +936,13 @@ function App() {
                             ) : null}
                             {habit.tooltip?.trim() ? (
                               <span className="tooltip-wrap">
-                                <button type="button" className="info-pill" aria-label={`Info for ${habit.label}`}>
-                                  <Info size={13} />
+                                <button type="button" className="info-icon" aria-label={`Info for ${habit.label}`}>
+                                  i
                                 </button>
                                 <span className="tooltip-bubble">{habit.tooltip}</span>
                               </span>
                             ) : null}
                           </div>
-                          <p className="habit-sub">Score {score.toFixed(1)}</p>
                         </div>
                         {renderHabitControl(habit)}
                       </div>
@@ -950,13 +952,18 @@ function App() {
 
                 <div className="row-column good-column">
                   {entry.good.map((habit) => {
-                    const score = (counts[habit.habitId] ?? 0) * habit.scorePerUnit
+                    const count = counts[habit.habitId] ?? 0
+                    const score = count * habit.scorePerUnit
                     const streak = streakMap.get(habit.habitId) ?? 0
+                    const scoreIndicator = score !== 0 ? ` ${score > 0 ? '+' : ''}${score.toFixed(1)}` : ''
                     return (
                       <div key={habit.habitId} className="habit-item habit-good">
-                        <div>
+                        <div className="habit-info">
                           <div className="habit-title-row">
-                            <h5>{habit.label}</h5>
+                            <h5>
+                              {habit.label}
+                              {scoreIndicator ? <span className="score-indicator">{scoreIndicator}</span> : null}
+                            </h5>
                             {streak >= 2 ? (
                               <span className="tooltip-wrap">
                                 <span className="streak-icon">
@@ -967,14 +974,13 @@ function App() {
                             ) : null}
                             {habit.tooltip?.trim() ? (
                               <span className="tooltip-wrap">
-                                <button type="button" className="info-pill" aria-label={`Info for ${habit.label}`}>
-                                  <Info size={13} />
+                                <button type="button" className="info-icon" aria-label={`Info for ${habit.label}`}>
+                                  i
                                 </button>
                                 <span className="tooltip-bubble">{habit.tooltip}</span>
                               </span>
                             ) : null}
                           </div>
-                          <p className="habit-sub">Score {score.toFixed(1)}</p>
                         </div>
                         {renderHabitControl(habit)}
                       </div>
