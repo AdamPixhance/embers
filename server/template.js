@@ -113,9 +113,9 @@ const sampleGroups = [
 ]
 
 const sampleBadges = [
-  ['crash', 'Crash Day', '💥', '#b91c1c', -100, 1, 1],
-  ['rough', 'Rough Day', '⚠️', '#f97316', -40, 2, 1],
-  ['struggling', 'Struggling Day', '😓', '#fb923c', -15, 3, 1],
+  ['crash', 'Crash Day', '💥', '#b91c1c', -40, 1, 1],
+  ['rough', 'Rough Day', '⚠️', '#f97316', -25, 2, 1],
+  ['struggling', 'Struggling Day', '😓', '#fb923c', -10, 3, 1],
   ['ok', 'OK Day', '⚪', '#94a3b8', 0, 4, 1],
   ['solid', 'Solid Day', '🟢', '#22c55e', 20, 5, 1],
   ['great', 'Great Day', '🏆', '#16a34a', 40, 6, 1],
@@ -203,9 +203,9 @@ export async function ensureWorkbookTemplate() {
       '',
       'Badge Scoring (Percentage-Based):',
       '- Crash Day (-100% to -40%): Significantly below zero',
-      '- Rough Day (-40% to -15%): Below expectations',
-      '- Struggling Day (-15% to 0%): Slightly negative',
-      '- OK Day (0% to 20%): Minimal progress',
+      '- Rough Day (-40% to -25%): Below expectations',
+      '- Struggling Day (-25% to -10%): Moderately negative',
+      '- OK Day (-10% to 20%): Near neutral or minimal progress',
       '- Solid Day (20% to 40%): Good progress',
       '- Great Day (40% to 70%): Strong performance',
       '- Elite Day (70% to 100%): Exceptional day',
