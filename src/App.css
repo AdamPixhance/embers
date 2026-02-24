@@ -146,6 +146,22 @@ button:focus-visible {
   max-width: 880px;
 }
 
+.danger-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.danger-actions .ghost-button {
+  background: #fee2e2;
+  color: #7f1d1d;
+}
+
+.danger-actions .ghost-button:hover:not(:disabled) {
+  background: #fecaca;
+}
+
 .danger-button {
   color: #fff;
   background: linear-gradient(135deg, #dc2626, #b91c1c);

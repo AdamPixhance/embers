@@ -113,6 +113,7 @@ function App() {
   const [showHistory, setShowHistory] = useState(false)
   const [habitHistory, setHabitHistory] = useState<HabitHistoryItem[]>([])
   const [resetting, setResetting] = useState(false)
+  const [exportingBackup, setExportingBackup] = useState(false)
 
   const loadWorkbookData = async () => {
     const response = await fetch(apiUrl('/api/data'))
@@ -237,6 +238,7 @@ function App() {
   }
 
   const handleExport = async () => {
+    setExportingBackup(true)
     try {
       const response = await fetch(apiUrl('/api/export/csv'))
       if (!response.ok) {
@@ -253,6 +255,8 @@ function App() {
       document.body.removeChild(a)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Export failed')
+    } finally {
+      setExportingBackup(false)
     }
   }
 
@@ -584,16 +588,28 @@ function App() {
               and local app data. This action is irreversible.
             </p>
           </div>
-          <button
-            type="button"
-            className="danger-button"
-            onClick={resetAppData}
-            disabled={resetting || loading || saving}
-            title="Delete all personal data and reset app to default placeholders"
-            aria-label="Delete all personal data and reset app to default placeholders"
-          >
-            {resetting ? 'Resetting…' : 'Reset app and delete all personal data'}
-          </button>
+          <div className="danger-actions">
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={handleExport}
+              disabled={exportingBackup || resetting || loading || saving}
+              title="Export a CSV backup before destructive reset"
+              aria-label="Export a CSV backup before destructive reset"
+            >
+              <Download size={16} /> {exportingBackup ? 'Exporting backup…' : 'Export backup before reset'}
+            </button>
+            <button
+              type="button"
+              className="danger-button"
+              onClick={resetAppData}
+              disabled={resetting || exportingBackup || loading || saving}
+              title="Delete all personal data and reset app to default placeholders"
+              aria-label="Delete all personal data and reset app to default placeholders"
+            >
+              {resetting ? 'Resetting…' : 'Reset app and delete all personal data'}
+            </button>
+          </div>
         </section>
 
         <section className="summary-grid" aria-label="Daily summary statistics">
