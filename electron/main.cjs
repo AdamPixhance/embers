@@ -1,13 +1,81 @@
 const path = require('node:path')
 const fs = require('node:fs/promises')
+const { execFile } = require('node:child_process')
+const { promisify } = require('node:util')
 const { pathToFileURL } = require('node:url')
-const { app, BrowserWindow } = require('electron')
+const { app, BrowserWindow, ipcMain } = require('electron')
 
 const isDev = !!process.env.VITE_DEV_SERVER_URL
 const isPacked = app.isPackaged
 const apiPort = Number(process.env.EMBERS_API_PORT || '4010')
+const execFileAsync = promisify(execFile)
 
 let apiServer = null
+
+function toPsLiteral(value) {
+  return String(value ?? '').replace(/'/g, "''")
+}
+
+async function resolveShortcutTargetExe() {
+  if (isPacked) {
+    return app.getPath('exe')
+  }
+
+  const appPath = app.getAppPath()
+  const packageJsonPath = path.join(appPath, 'package.json')
+  let version = '1.0.0'
+
+  try {
+    const packageJsonRaw = await fs.readFile(packageJsonPath, 'utf-8')
+    const parsed = JSON.parse(packageJsonRaw)
+    if (parsed?.version) version = String(parsed.version)
+  } catch {
+    // keep fallback
+  }
+
+  const candidates = [
+    path.join(appPath, 'release', `Embers-portable-${version}`, 'Embers.exe'),
+    path.join(appPath, 'release', 'Embers-win32-x64', 'Embers.exe'),
+    path.join(appPath, 'release', 'win-unpacked', 'Embers.exe'),
+    path.join(appPath, 'Embers.exe'),
+  ]
+
+  for (const candidate of candidates) {
+    if (await pathExists(candidate)) return candidate
+  }
+
+  throw new Error('Unable to find Embers.exe to create Start Menu shortcut.')
+}
+
+async function createStartMenuShortcut() {
+  if (process.platform !== 'win32') {
+    throw new Error('Start Menu shortcut creation is only supported on Windows.')
+  }
+
+  const targetPath = await resolveShortcutTargetExe()
+  const workingDirectory = path.dirname(targetPath)
+  const startMenuDir = path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs')
+  await fs.mkdir(startMenuDir, { recursive: true })
+  const shortcutPath = path.join(startMenuDir, 'Embers.lnk')
+
+  const psCommand = [
+    '$WshShell = New-Object -ComObject WScript.Shell',
+    `$Shortcut = $WshShell.CreateShortcut('${toPsLiteral(shortcutPath)}')`,
+    `$Shortcut.TargetPath = '${toPsLiteral(targetPath)}'`,
+    `$Shortcut.WorkingDirectory = '${toPsLiteral(workingDirectory)}'`,
+    `$Shortcut.IconLocation = '${toPsLiteral(targetPath)},0'`,
+    "$Shortcut.Description = 'Embers desktop app'",
+    '$Shortcut.Save()',
+  ].join('; ')
+
+  await execFileAsync(
+    'powershell',
+    ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', psCommand],
+    { windowsHide: true }
+  )
+
+  return { shortcutPath, targetPath }
+}
 
 async function pathExists(targetPath) {
   try {
@@ -76,6 +144,10 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  ipcMain.handle('embers:create-start-menu-shortcut', async () => {
+    return createStartMenuShortcut()
+  })
+
   await startApiServer()
   createWindow()
 
@@ -93,6 +165,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  ipcMain.removeHandler('embers:create-start-menu-shortcut')
   if (apiServer) {
     apiServer.close()
   }

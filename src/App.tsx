@@ -119,19 +119,40 @@ type BadgeMapItem = {
   hasProgress: boolean
 }
 
+type EmbersDesktopBridge = {
+  createStartMenuShortcut: () => Promise<{ shortcutPath: string; targetPath: string }>
+}
+
 const desktopApiBase =
   typeof window !== 'undefined' && 'embersApiBase' in window
     ? String((window as Window & { embersApiBase?: string }).embersApiBase ?? '')
     : ''
 
+const desktopBridge =
+  typeof window !== 'undefined'
+    ? (window as Window & { embersDesktop?: EmbersDesktopBridge }).embersDesktop
+    : undefined
+
 const apiUrl = (path: string) => `${desktopApiBase}${path}`
-const todayIso = () => new Date().toISOString().slice(0, 10)
+const todayIso = () => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
 const WEEKDAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 function shiftDate(dateIso: string, deltaDays: number) {
-  const date = new Date(`${dateIso}T00:00:00`)
-  date.setDate(date.getDate() + deltaDays)
+  const [year, month, day] = dateIso.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  date.setUTCDate(date.getUTCDate() + deltaDays)
   return date.toISOString().slice(0, 10)
+}
+
+function resolvePotentialCount(habit: Habit) {
+  if (habit.type === 'toggle') return 1
+  return Math.max(habit.minCount, Math.min(habit.maxCount, 1))
 }
 
 function formatDayHeading(dateIso: string) {
@@ -202,6 +223,7 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
   const [selectedDate, setSelectedDate] = useState(todayIso())
   const [view, setView] = useState<'day' | 'stats'>('day')
   const [data, setData] = useState<WorkbookPayload | null>(null)
@@ -218,6 +240,7 @@ function App() {
   const [isFocusMode, setIsFocusMode] = useState(false)
   const [showOpenDayDialog, setShowOpenDayDialog] = useState(false)
   const [openDayTarget, setOpenDayTarget] = useState<string | null>(null)
+  const [creatingShortcut, setCreatingShortcut] = useState(false)
   const [showSnapshotModal, setShowSnapshotModal] = useState(false)
   const [snapshotDone, setSnapshotDone] = useState<string[]>([])
   const [snapshotMissed, setSnapshotMissed] = useState<string[]>([])
@@ -510,6 +533,14 @@ function App() {
     if (view !== 'day') setView('day')
   }, [isFocusMode, view])
 
+  useEffect(() => {
+    if (!successMessage) return
+    const timer = window.setTimeout(() => {
+      setSuccessMessage('')
+    }, 4000)
+    return () => window.clearTimeout(timer)
+  }, [successMessage])
+
   const isDirty = useMemo(() => !areCountsEqual(counts, lastSavedCounts), [counts, lastSavedCounts])
 
   useEffect(() => {
@@ -555,25 +586,55 @@ function App() {
   }, [data, habitsForSelectedDate])
 
   const progressModel = useMemo(() => {
-    if (!data) return { score: 0, min: 0, max: 1, percent: 50 }
+    if (!data) {
+      return {
+        score: 0,
+        maxPositiveScore: 0,
+        maxNegativeMagnitude: 0,
+        scorePercent: 0,
+        fillPercent: 50,
+      }
+    }
 
-    let min = 0
-    let max = 0
+    let maxPositiveScore = 0
+    let maxNegativeMagnitude = 0
     let score = 0
 
     for (const habit of habitsForSelectedDate) {
       const current = counts[habit.habitId] ?? 0
       score += current * habit.scorePerUnit
 
-      const low = Math.min(habit.minCount * habit.scorePerUnit, habit.maxCount * habit.scorePerUnit)
-      const high = Math.max(habit.minCount * habit.scorePerUnit, habit.maxCount * habit.scorePerUnit)
-      min += low
-      max += high
+      const potentialCount = resolvePotentialCount(habit)
+      const potentialScore = potentialCount * habit.scorePerUnit
+      if (habit.polarity === 'bad') {
+        maxNegativeMagnitude += Math.abs(potentialScore)
+      } else {
+        maxPositiveScore += Math.max(0, potentialScore)
+      }
     }
 
-    const span = Math.max(0.0001, max - min)
-    const percent = Math.max(0, Math.min(100, ((score - min) / span) * 100))
-    return { score, min, max, percent }
+    const scorePercent =
+      score >= 0
+        ? maxPositiveScore > 0
+          ? (score / maxPositiveScore) * 100
+          : 0
+        : maxNegativeMagnitude > 0
+          ? (score / maxNegativeMagnitude) * 100
+          : 0
+
+    const totalSpan = maxPositiveScore + maxNegativeMagnitude
+    const fillPercent =
+      totalSpan > 0
+        ? Math.max(0, Math.min(100, ((score + maxNegativeMagnitude) / totalSpan) * 100))
+        : 50
+
+    return {
+      score,
+      maxPositiveScore,
+      maxNegativeMagnitude,
+      scorePercent: Math.max(-100, Math.min(100, scorePercent)),
+      fillPercent,
+    }
   }, [data, counts, habitsForSelectedDate])
 
   const liveBadge = useMemo(() => {
@@ -583,10 +644,10 @@ function App() {
 
     let matched: Badge | null = null
     for (const badge of badges) {
-      if (progressModel.score >= badge.minScore) matched = badge
+      if (progressModel.scorePercent >= badge.minScore) matched = badge
     }
     return matched
-  }, [data, progressModel.score])
+  }, [data, progressModel.scorePercent])
 
   const setHabitCount = (habit: Habit, nextCount: number) => {
     if (openDayInProgress && openDayInProgress !== selectedDate) {
@@ -739,6 +800,30 @@ function App() {
           {isNavExpanded ? <span className="nav-label">Workbook</span> : null}
         </button>
 
+        {desktopBridge?.createStartMenuShortcut ? (
+          <button
+            type="button"
+            className="nav-item"
+            onClick={async () => {
+              setCreatingShortcut(true)
+              try {
+                const result = await desktopBridge.createStartMenuShortcut()
+                setError('')
+                setSuccessMessage(`Start Menu shortcut created: ${result.shortcutPath}`)
+              } catch (err) {
+                setError(err instanceof Error ? err.message : 'Unable to create Start Menu shortcut')
+              } finally {
+                setCreatingShortcut(false)
+              }
+            }}
+            disabled={creatingShortcut || loading || saving}
+            title="Create Start Menu shortcut"
+          >
+            <Plus size={17} />
+            {isNavExpanded ? <span className="nav-label">Start Menu</span> : null}
+          </button>
+        ) : null}
+
         <button
           type="button"
           className="nav-item"
@@ -856,7 +941,7 @@ function App() {
             <div className="score-section">
               <div className="score-value">Score {progressModel.score.toFixed(1)}</div>
               <div className="score-bar-wrap">
-                <div className="score-bar-fill" style={{ width: `${progressModel.percent}%` }} />
+                <div className="score-bar-fill" style={{ width: `${progressModel.fillPercent}%` }} />
               </div>
             </div>
 
@@ -917,6 +1002,12 @@ function App() {
         {error ? (
           <div className="error-banner card" role="alert" aria-live="assertive">
             {error}
+          </div>
+        ) : null}
+
+        {successMessage ? (
+          <div className="success-banner card" role="status" aria-live="polite">
+            {successMessage}
           </div>
         ) : null}
 

@@ -1,6 +1,7 @@
 param(
     [string]$AppName = "Embers",
-    [string]$ExeName = "Embers.exe"
+    [string]$ExeName = "Embers.exe",
+    [string]$TargetPath = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -8,13 +9,33 @@ $ErrorActionPreference = "Stop"
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectRoot = Split-Path -Parent $scriptDir
 
+$appVersion = "1.0.0"
+$packageJsonPath = Join-Path $projectRoot "package.json"
+if (Test-Path $packageJsonPath) {
+    try {
+        $pkg = Get-Content $packageJsonPath -Raw | ConvertFrom-Json
+        if ($pkg.version) {
+            $appVersion = [string]$pkg.version
+        }
+    }
+    catch {
+        # keep default version fallback
+    }
+}
+
 $candidateExePaths = @(
+    (Join-Path $projectRoot "release\Embers-win32-x64\$ExeName"),
+    (Join-Path $projectRoot "release\Embers-portable-$appVersion\$ExeName"),
     (Join-Path $projectRoot "release\win-unpacked\$ExeName"),
-    (Join-Path $projectRoot "release\Embers-portable-0.1.0\$ExeName"),
     (Join-Path $projectRoot $ExeName)
 )
 
-$exePath = $candidateExePaths | Where-Object { Test-Path $_ } | Select-Object -First 1
+if ($TargetPath -and (Test-Path $TargetPath)) {
+    $exePath = $TargetPath
+}
+else {
+    $exePath = $candidateExePaths | Where-Object { Test-Path $_ } | Select-Object -First 1
+}
 
 if (-not $exePath) {
     Write-Error "Could not find $ExeName. Build the desktop app first, or place this script near the executable."
