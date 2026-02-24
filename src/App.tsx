@@ -749,6 +749,22 @@ function App() {
           <Download size={17} />
           {isNavExpanded ? <span className="nav-label">Export</span> : null}
         </button>
+
+        <div className="nav-divider" />
+
+        <button
+          type="button"
+          className={`nav-item ${isFocusMode ? 'active' : ''}`}
+          onClick={() => {
+            toggleFocusMode().catch((err) => {
+              setError(err instanceof Error ? err.message : 'Unable to toggle focus mode')
+            })
+          }}
+          title={isFocusMode ? 'Exit focus mode' : 'Enter focus mode'}
+        >
+          <Target size={17} />
+          {isNavExpanded ? <span className="nav-label">{isFocusMode ? 'Exit Focus' : 'Focus Mode'}</span> : null}
+        </button>
       </aside>
 
       <main className="main-panel">
@@ -918,8 +934,9 @@ function App() {
                     const score = count * habit.scorePerUnit
                     const streak = streakMap.get(habit.habitId) ?? 0
                     const scoreIndicator = score !== 0 ? ` ${score > 0 ? '+' : ''}${score.toFixed(1)}` : ''
+                    const isActive = habit.type === 'toggle' ? count >= 1 : count > habit.minCount
                     return (
-                      <div key={habit.habitId} className="habit-item habit-bad">
+                      <div key={habit.habitId} className={`habit-item habit-bad ${isActive ? 'is-active' : ''}`}>
                         <div className="habit-info">
                           <div className="habit-title-row">
                             <h5>
@@ -956,8 +973,9 @@ function App() {
                     const score = count * habit.scorePerUnit
                     const streak = streakMap.get(habit.habitId) ?? 0
                     const scoreIndicator = score !== 0 ? ` ${score > 0 ? '+' : ''}${score.toFixed(1)}` : ''
+                    const isActive = habit.type === 'toggle' ? count >= 1 : count > habit.minCount
                     return (
-                      <div key={habit.habitId} className="habit-item habit-good">
+                      <div key={habit.habitId} className={`habit-item habit-good ${isActive ? 'is-active' : ''}`}>
                         <div className="habit-info">
                           <div className="habit-title-row">
                             <h5>
@@ -1013,68 +1031,70 @@ function App() {
               </div>
             </div>
 
-            <div className="card badge-grid-card">
-              <h3>Weekly grid</h3>
-              <div className="badge-grid github-grid">
-                {buildRange(
-                  (() => {
-                    const anchor = new Date(`${selectedDate}T00:00:00`)
-                    const start = new Date(anchor)
-                    start.setDate(anchor.getDate() - anchor.getDay())
-                    return start
-                  })(),
-                  (() => {
-                    const anchor = new Date(`${selectedDate}T00:00:00`)
-                    const start = new Date(anchor)
-                    start.setDate(anchor.getDate() - anchor.getDay())
-                    const end = new Date(start)
-                    end.setDate(start.getDate() + 6)
-                    return end
-                  })()
-                ).map((dateIso) => {
-                  const info = badgeWeek[dateIso]
-                  return (
-                    <span
-                      key={`week-${dateIso}`}
-                      className="badge-cell"
-                      title={`${dateIso} • ${info?.badge?.displayName ?? 'No badge'} • Score ${info?.score?.toFixed(1) ?? '0.0'}`}
-                      style={{ backgroundColor: info?.badge?.colorHex ?? '#e2e8f0' }}
-                    >
-                      {info?.badge?.icon ?? ''}
-                    </span>
-                  )
-                })}
+            <div className="stats-grids-row">
+              <div className="card badge-grid-card">
+                <h3>Weekly grid</h3>
+                <div className="badge-grid github-grid">
+                  {buildRange(
+                    (() => {
+                      const anchor = new Date(`${selectedDate}T00:00:00`)
+                      const start = new Date(anchor)
+                      start.setDate(anchor.getDate() - anchor.getDay())
+                      return start
+                    })(),
+                    (() => {
+                      const anchor = new Date(`${selectedDate}T00:00:00`)
+                      const start = new Date(anchor)
+                      start.setDate(anchor.getDate() - anchor.getDay())
+                      const end = new Date(start)
+                      end.setDate(start.getDate() + 6)
+                      return end
+                    })()
+                  ).map((dateIso) => {
+                    const info = badgeWeek[dateIso]
+                    return (
+                      <span
+                        key={`week-${dateIso}`}
+                        className="badge-cell"
+                        title={`${dateIso} • ${info?.badge?.displayName ?? 'No badge'} • Score ${info?.score?.toFixed(1) ?? '0.0'}`}
+                        style={{ backgroundColor: info?.badge?.colorHex ?? '#e2e8f0' }}
+                      >
+                        {info?.badge?.icon ?? ''}
+                      </span>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
 
-            <div className="card badge-grid-card">
-              <h3>Monthly grid</h3>
-              <div className="badge-grid github-grid">
-                {buildRange(
-                  (() => {
-                    const anchor = new Date(`${selectedDate}T00:00:00`)
-                    return new Date(anchor.getFullYear(), anchor.getMonth(), 1)
-                  })(),
-                  (() => {
-                    const anchor = new Date(`${selectedDate}T00:00:00`)
-                    const nextMonth = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1)
-                    const end = new Date(nextMonth)
-                    end.setDate(nextMonth.getDate() - 1)
-                    return end
-                  })()
-                ).map((dateIso) => {
-                  const info = badgeMonth[dateIso]
-                  return (
-                    <span
-                      key={`month-${dateIso}`}
-                      className="badge-cell"
-                      title={`${dateIso} • ${info?.badge?.displayName ?? 'No badge'} • Score ${info?.score?.toFixed(1) ?? '0.0'}`}
-                      style={{ backgroundColor: info?.badge?.colorHex ?? '#e2e8f0' }}
-                    >
-                      {info?.badge?.icon ?? ''}
-                    </span>
-                  )
-                })}
+              <div className="card badge-grid-card">
+                <h3>Monthly grid</h3>
+                <div className="badge-grid github-grid">
+                  {buildRange(
+                    (() => {
+                      const anchor = new Date(`${selectedDate}T00:00:00`)
+                      return new Date(anchor.getFullYear(), anchor.getMonth(), 1)
+                    })(),
+                    (() => {
+                      const anchor = new Date(`${selectedDate}T00:00:00`)
+                      const nextMonth = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1)
+                      const end = new Date(nextMonth)
+                      end.setDate(nextMonth.getDate() - 1)
+                      return end
+                    })()
+                  ).map((dateIso) => {
+                    const info = badgeMonth[dateIso]
+                    return (
+                      <span
+                        key={`month-${dateIso}`}
+                        className="badge-cell"
+                        title={`${dateIso} • ${info?.badge?.displayName ?? 'No badge'} • Score ${info?.score?.toFixed(1) ?? '0.0'}`}
+                        style={{ backgroundColor: info?.badge?.colorHex ?? '#e2e8f0' }}
+                      >
+                        {info?.badge?.icon ?? ''}
+                      </span>
+                    )
+                  })}
+                </div>
               </div>
             </div>
 

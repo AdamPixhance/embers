@@ -302,15 +302,31 @@ export async function ensureWorkbookTemplate() {
       }
     }
 
-    habits.getCell('A1').note = 'habit_id should remain stable once created (used in saved day history).'
-    habits.getCell('E1').note = 'Use good for positive habit side, bad for negative habit side.'
-    habits.getCell('F1').note = 'Positive values reward behavior, negative values penalize behavior.'
-    habits.getCell('G1').note = 'Daily threshold required to qualify streak for this habit.'
-    habits.getCell('M1').note = 'Use Schedule Options. Custom uses Schedule Days (comma-separated for multiple days).'
-    habits.getCell('O1').note = 'Set a YYYY-MM-DD start date to activate after that day (optional).'
-    habits.getCell('P1').note = 'Set a YYYY-MM-DD end date to stop showing after that day (optional).'
+    habits.getCell('A1').note = {
+      texts: [{ text: 'habit_id should remain stable once created (used in saved day history).' }],
+    }
+    habits.getCell('E1').note = {
+      texts: [{ text: 'Use good for positive habit side, bad for negative habit side.' }],
+    }
+    habits.getCell('F1').note = {
+      texts: [{ text: 'Positive values reward behavior, negative values penalize behavior.' }],
+    }
+    habits.getCell('G1').note = {
+      texts: [{ text: 'Daily threshold required to qualify streak for this habit.' }],
+    }
+    habits.getCell('M1').note = {
+      texts: [{ text: 'Use Schedule Options. Custom uses Schedule Days (comma-separated for multiple days).' }],
+    }
+    habits.getCell('O1').note = {
+      texts: [{ text: 'Set a YYYY-MM-DD start date to activate after that day (optional).' }],
+    }
+    habits.getCell('P1').note = {
+      texts: [{ text: 'Set a YYYY-MM-DD end date to stop showing after that day (optional).' }],
+    }
 
-    badges.getCell('E1').note = 'Badge applies when day score is >= min_score. Highest matching threshold wins.'
+    badges.getCell('E1').note = {
+      texts: [{ text: 'Badge applies when day score is >= min_score. Highest matching threshold wins.' }],
+    }
 
     await workbook.xlsx.writeFile(WORKBOOK_PATH)
     return true
