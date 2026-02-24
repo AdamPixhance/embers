@@ -5,8 +5,31 @@ import { fileURLToPath } from 'node:url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.join(__dirname, '..')
 const releaseDir = path.join(projectRoot, 'release')
-const winUnpackedDir = path.join(releaseDir, 'win-unpacked')
-const portableDir = path.join(releaseDir, 'Embers-portable-0.1.0')
+
+async function readAppVersion() {
+  const packageJsonPath = path.join(projectRoot, 'package.json')
+  const raw = await fs.readFile(packageJsonPath, 'utf-8')
+  const parsed = JSON.parse(raw)
+  return String(parsed.version || '1.0.0')
+}
+
+async function resolveBuiltAppDir() {
+  const candidates = [
+    path.join(releaseDir, 'Embers-win32-x64'),
+    path.join(releaseDir, 'win-unpacked'),
+  ]
+
+  for (const candidate of candidates) {
+    try {
+      const stat = await fs.stat(candidate)
+      if (stat.isDirectory()) return candidate
+    } catch {
+      // continue
+    }
+  }
+
+  throw new Error('No desktop build output found. Run npm run build:desktop first.')
+}
 
 async function ensureDir(dir) {
   try {
@@ -31,7 +54,7 @@ async function copyDir(src, dest) {
   }
 }
 
-async function createRunBatch() {
+async function createRunBatch(portableDir) {
   const batchContent = `@echo off
 :: Embers - Native Habit App
 :: This batch file launches the Embers application
@@ -54,37 +77,26 @@ start "" "!EXE_PATH!"
   console.log(`Created launcher batch file: ${path.relative(projectRoot, batchPath)}`)
 }
 
-async function createReadme() {
-  const readmeContent = `# Embers Portable Edition
+async function createReadme(portableDir) {
+  const readmeContent = `Embers Portable Edition
 
-Native habit tracking app with workbook-driven configuration.
+Native desktop habit app (local-first).
 
-## Quick Start
+Quick Start
+1. Double-click Run Embers.bat
+2. Or run Embers.exe directly
 
-1. Double-click **Run Embers.bat** to launch the application
-2. Or run **Embers.exe** directly
-
-## First Use
-
-- Create your habit configuration in Excel (embers-habits.xlsx)
-- Toggle/counter habits with per-unit scoring
-- Daily locking prevents past editing and future speculation
-- View 30-day trends and per-habit history
-
-## System Requirements
-
+Notes
 - Windows 10 or later
-- No installation required - fully portable
+- No installation required
+- Data remains local on this machine
 
-## Data Storage
+Data Files
+- data/embers-habits.xlsx (created on first run if missing)
+- data/habit-day-log.json
 
-- Habit configuration: embers-habits.xlsx
-- Daily tracking data: habit-day-log.json
-- Both stored in the same folder as the app
-
-## Support
-
-For issues or suggestions, visit the project repository.
+Support
+Use the project repository issue tracker for feedback and bugs.
 `
   const readmePath = path.join(portableDir, 'README.txt')
   await fs.writeFile(readmePath, readmeContent, 'utf-8')
@@ -93,6 +105,10 @@ For issues or suggestions, visit the project repository.
 
 async function packageApp() {
   try {
+    const version = await readAppVersion()
+    const portableDir = path.join(releaseDir, `Embers-portable-${version}`)
+    const builtAppDir = await resolveBuiltAppDir()
+
     console.log('Clearing previous build...')
     if (await fs.stat(portableDir).catch(() => null)) {
       await fs.rm(portableDir, { recursive: true, force: true })
@@ -100,13 +116,13 @@ async function packageApp() {
     }
 
     console.log('Packaging app files...')
-    await copyDir(winUnpackedDir, portableDir)
+    await copyDir(builtAppDir, portableDir)
 
     console.log('Creating launcher...')
-    await createRunBatch()
+    await createRunBatch(portableDir)
 
     console.log('Creating documentation...')
-    await createReadme()
+    await createReadme(portableDir)
 
     console.log(`\n✓ Portable app created successfully: ${portableDir}`)
     console.log(`\n Package size: Check folder for details`)

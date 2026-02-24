@@ -98,7 +98,9 @@ npm run build:desktop
 
 ### Distribution
 
-- Use `release/win-unpacked/Embers.exe` for portable distribution.
+- Desktop build output: `release/Embers-win32-x64/Embers.exe`
+- Portable bundle (with launcher + README): `npm run package:portable`
+- Portable output folder: `release/Embers-portable-1.0.0`
 
 ## Notes
 
