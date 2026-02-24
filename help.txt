@@ -1,0 +1,37 @@
+Pixcope - Quick Help
+
+What is the dev server?
+- The dev server is only for development/testing. It serves the web app and API while you are iterating.
+- You do NOT need it when using the packaged desktop app (Pixcope.exe).
+
+Normal workflow (recommended)
+1) Launch the desktop app:
+   - Open release/Pixcope-win32-x64/Pixcope.exe
+   - The API starts automatically inside the app.
+2) Edit services in the Excel file as needed.
+3) Click Refresh Workbook in the app (or wait for auto-sync).
+4) Create or open a project estimate.
+5) Click Save to keep the estimate for later.
+
+Dev/testing workflow
+- Run: npm run dev (web) or npm run dev:desktop (desktop dev)
+- Keep the terminal open while testing.
+
+Saving projects
+- Click Save in the right-side panel to store the estimate.
+- Saved projects are kept locally in projects.json in the Pixcope data folder.
+
+If you close without saving
+- Unsaved changes are lost. The last saved version is what you will see next time.
+
+Closing the app
+- Using the window X is enough to close the app.
+- No extra close button is needed.
+
+Excel sync timing
+- Auto-sync happens about every 8 seconds.
+- You can force a refresh with the Refresh Workbook button.
+
+Notes
+- Desktop app data (workbook + saved projects) lives in your user data folder.
+- If you want to update these instructions, edit help.txt.

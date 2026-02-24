@@ -1,0 +1,27 @@
+{
+  "sheets": {
+    "Habits": {
+      "requiredColumns": [
+        "habit_id",
+        "label",
+        "type",
+        "group_id",
+        "tags",
+        "score_per_unit",
+        "streak_min_count",
+        "min_count",
+        "max_count",
+        "tooltip",
+        "active",
+        "sort_order"
+      ],
+      "typeValues": ["toggle", "counter"]
+    },
+    "Groups": {
+      "requiredColumns": ["group_id", "group_label", "sort_order"]
+    },
+    "Tags": {
+      "requiredColumns": ["tag_id", "tag_label", "tag_color"]
+    }
+  }
+}

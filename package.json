@@ -1,0 +1,96 @@
+{
+  "name": "embers",
+  "description": "Embers - native desktop habit system with workbook-driven configuration",
+  "private": true,
+  "version": "0.1.0",
+  "author": "Embers",
+  "homepage": "https://embers.local",
+  "main": "electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm:dev:server\" \"npm:dev:web\"",
+    "dev:desktop": "concurrently \"npm:dev:web\" \"wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
+    "dev:web": "vite",
+    "dev:server": "node server/index.js",
+    "build": "tsc -b && vite build",
+    "brand:assets": "node scripts/generate-brand-assets.mjs",
+    "build:desktop": "npm run brand:assets && npm run build && electron-packager . Embers --platform=win32 --arch=x64 --overwrite --prune=false --asar=false --icon=assets/icons/pixcope-icon.ico --out=release --ignore=^/release$ --app-version=0.1.0 --app-copyright=Embers --win32metadata.CompanyName=Embers --win32metadata.FileDescription=Embers Habit App --win32metadata.OriginalFilename=Embers.exe --win32metadata.ProductName=Embers && node scripts/fix-packaged-deps.mjs",
+    "package:portable": "npm run brand:assets && npm run build && node scripts/package-app.mjs",
+    "build:desktop:installer": "npm run brand:assets && npm run build && electron-builder --win",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "start:server": "node server/index.js",
+    "start:desktop": "electron ."
+  },
+  "build": {
+    "appId": "com.embers.app",
+    "productName": "Embers",
+    "directories": {
+      "output": "release",
+      "buildResources": "assets/icons"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "server/**/*",
+      "data/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "icon": "assets/icons/pixcope-icon.ico",
+      "forceCodeSigning": false,
+      "target": [
+        "portable"
+      ]
+    },
+    "nsis": {
+      "installerIcon": "assets/icons/pixcope-icon.ico",
+      "uninstallerIcon": "assets/icons/pixcope-icon.ico",
+      "installerHeaderIcon": "assets/icons/pixcope-icon.ico",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Embers"
+    }
+  },
+  "dependencies": {
+    "bluebird": "^3.7.2",
+    "chokidar": "^5.0.0",
+    "cors": "^2.8.6",
+    "exceljs": "^4.4.0",
+    "express": "^5.2.1",
+    "lucide-react": "^0.575.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.13.0",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@electron/packager": "^19.0.5",
+    "@eslint/js": "^9.39.1",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^40.6.0",
+    "electron-builder": "^26.8.1",
+    "electron-packager": "^17.1.2",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "pngjs": "^7.0.0",
+    "sharp": "^0.34.5",
+    "to-ico": "^1.1.5",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.48.0",
+    "vite": "^7.3.1",
+    "wait-on": "^9.0.4"
+  }
+}

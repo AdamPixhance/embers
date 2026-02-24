@@ -1,0 +1,56 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependencies
+node_modules
+
+# Build outputs
+dist
+dist-ssr
+release
+build-output.txt
+
+# Runtime/cache artifacts
+.cache
+.vite
+coverage
+*.pid
+*.seed
+*.tmp
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Local app data that should not be shared
+data/*.xlsx
+data/habit-day-log.json
+data/projects.json
+data/pixcope-services.backup-*.xlsx
+
+# Keep local by default (optional)
+# data/local/**
+
+# OS-specific
+Thumbs.db
+
+# Existing Vite template patterns
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
