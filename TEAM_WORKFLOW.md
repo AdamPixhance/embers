@@ -1,19 +1,19 @@
-# Pixcope Team Workflow
+# Embers Team Workflow
 
 This file defines how we collaborate safely on source code and shared data.
 
 ## Ownership model
 
 - Source code changes: both developers can edit.
-- Shared data changes (`data/pixcope-services.xlsx`, `data/images/*`): coordinated updates.
-- Local saved estimates (`data/projects.json`): local-only, never committed.
+- Shared data changes (`data/embers-habits.xlsx`, `data/images/*`): coordinated updates via Git LFS.
+- Local app data (`data/habit-day-log.json`, `data/projects.json`): local-only, never committed.
 
 ## One-time setup (each machine)
 
 1. Clone repo:
-   - `git clone https://github.com/AdamPixhance/Pixcope.git`
+   - `git clone https://github.com/AdamPixhance/embers.git`
 2. Enter project:
-   - `cd Pixcope`
+   - `cd embers`
 3. Enable Git LFS:
    - `git lfs install`
 4. Pull LFS objects:
@@ -28,39 +28,39 @@ This file defines how we collaborate safely on source code and shared data.
 ## Editing workbook (recommended single-editor lock flow)
 
 1. Lock workbook before opening:
-   - `git lfs lock data/pixcope-services.xlsx`
+   - `git lfs lock data/embers-habits.xlsx`
 2. Make workbook changes and save.
 3. Commit and push:
-   - `git add data/pixcope-services.xlsx`
-   - `git commit -m "Data: update workbook"`
+   - `git add data/embers-habits.xlsx`
+   - `git commit -m "data: update habits workbook"`
    - `git push`
 4. Unlock workbook:
-   - `git lfs unlock data/pixcope-services.xlsx`
+   - `git lfs unlock data/embers-habits.xlsx`
 
-## Editing images
+## Editing images/assets
 
-1. Add/update files under `data/images/`.
+1. Add/update files under `data/images/`, `assets/brand/`, or `assets/icons/`.
 2. Commit and push:
-   - `git add data/images`
-   - `git commit -m "Data: update service images"`
+   - `git add data/images/ assets/`
+   - `git commit -m "data: update images and assets"`
    - `git push`
 
 ## Editing app/source and creating patches
 
 1. Make code changes.
 2. Commit and push source:
-   - `git add src server electron package.json package-lock.json`
-   - `git commit -m "Patch: <short description>"`
+   - `git add src server electron package.json`
+   - `git commit -m "feat: <short description>" or "fix: <short description>"`
    - `git push`
 3. Build release when needed:
    - `npm run build:desktop`
 
 ## Rules to prevent data loss
 
-- Never commit `data/projects.json`.
+- Never commit `data/habit-day-log.json` or `data/projects.json` (local app state only).
 - Pull before starting work, especially before workbook edits.
 - If lock fails, stop and coordinate before editing workbook.
-- Keep commit messages clear: prefix with `Patch:` or `Data:`.
+- Keep commit messages clear: prefix with `data:`, `feat:`, `fix:`, etc.
 
 ## Quick recovery tips
 
