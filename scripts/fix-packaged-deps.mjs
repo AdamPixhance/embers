@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 
 const rootDir = process.cwd()
-const packageDir = path.join(rootDir, 'release', 'Pixcope-win32-x64', 'resources', 'app')
+const packageDir = path.join(rootDir, 'release', 'Embers-win32-x64', 'resources', 'app')
 
 const copies = [
   {
@@ -42,4 +42,4 @@ for (const item of copies) {
   await copyDirectory(item.from, item.to)
 }
 
-console.log('Patched packaged Bluebird release files for Pixcope desktop build.')
+console.log('Patched packaged Bluebird release files for Embers desktop build.')
