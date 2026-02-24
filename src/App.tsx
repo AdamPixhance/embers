@@ -638,24 +638,39 @@ function App() {
     }
   }, [data, counts, habitsForSelectedDate])
 
+  const unloggedBadge = useMemo(() => {
+    return (data?.badges ?? []).find((badge) => badge.badgeId === 'unlogged' && badge.active) ?? null
+  }, [data])
+
+  const hasAnyProgress = useMemo(() => {
+    return Object.values(counts).some((value) => Number(value) !== 0)
+  }, [counts])
+
   const liveBadge = useMemo(() => {
+    if (!hasAnyProgress) {
+      return unloggedBadge
+    }
+
     const badges = [...(data?.badges ?? [])]
-      .filter((badge) => badge.active)
+      .filter((badge) => badge.active && badge.badgeId !== 'unlogged')
       .sort((left, right) => left.minScore - right.minScore || left.sortOrder - right.sortOrder)
 
-    // Find the badge whose range contains the scorePercent
-    // Each badge's range is: [badge.minScore, nextBadge.minScore)
-    for (let i = 0; i < badges.length; i++) {
-      const badge = badges[i]
-      const nextBadge = badges[i + 1]
-      const qualifies = progressModel.scorePercent >= badge.minScore
-      const belowNext = !nextBadge || progressModel.scorePercent < nextBadge.minScore
-      if (qualifies && belowNext) {
-        return badge
+    const scorePercent = progressModel.scorePercent
+    if (scorePercent < 0) {
+      for (const badge of badges) {
+        if (scorePercent <= badge.minScore) {
+          return badge
+        }
       }
+      return null
     }
-    return null
-  }, [data, progressModel.scorePercent])
+
+    let matched: Badge | null = null
+    for (const badge of badges) {
+      if (scorePercent >= badge.minScore) matched = badge
+    }
+    return matched
+  }, [data, hasAnyProgress, progressModel.scorePercent, unloggedBadge])
 
   const setHabitCount = (habit: Habit, nextCount: number) => {
     if (openDayInProgress && openDayInProgress !== selectedDate) {
@@ -732,12 +747,12 @@ function App() {
       last7.push({
         date: iso,
         score: entry?.score ?? 0,
-        badge: entry?.badge ?? null,
+        badge: entry?.badge ?? unloggedBadge,
         hasProgress: entry ? true : false,
       })
     }
     return last7
-  }, [analytics, selectedDate])
+  }, [analytics, selectedDate, unloggedBadge])
 
   if (loading) {
     return <div className="screen center">Loading Embers…</div>
@@ -1151,14 +1166,15 @@ function App() {
                     })()
                   ).map((dateIso) => {
                     const info = badgeWeek[dateIso]
+                    const badge = info?.badge ?? unloggedBadge
                     return (
                       <span
                         key={`week-${dateIso}`}
                         className="badge-cell"
-                        title={`${dateIso} • ${info?.badge?.displayName ?? 'No badge'} • Score ${info?.score?.toFixed(1) ?? '0.0'}`}
-                        style={{ backgroundColor: info?.badge?.colorHex ?? '#e2e8f0' }}
+                        title={`${dateIso} • ${badge?.displayName ?? 'No badge'} • Score ${info?.score?.toFixed(1) ?? '0.0'}`}
+                        style={{ backgroundColor: badge?.colorHex ?? '#e2e8f0' }}
                       >
-                        {info?.badge?.icon ?? ''}
+                        {badge?.icon ?? ''}
                       </span>
                     )
                   })}
@@ -1182,14 +1198,15 @@ function App() {
                     })()
                   ).map((dateIso) => {
                     const info = badgeMonth[dateIso]
+                    const badge = info?.badge ?? unloggedBadge
                     return (
                       <span
                         key={`month-${dateIso}`}
                         className="badge-cell"
-                        title={`${dateIso} • ${info?.badge?.displayName ?? 'No badge'} • Score ${info?.score?.toFixed(1) ?? '0.0'}`}
-                        style={{ backgroundColor: info?.badge?.colorHex ?? '#e2e8f0' }}
+                        title={`${dateIso} • ${badge?.displayName ?? 'No badge'} • Score ${info?.score?.toFixed(1) ?? '0.0'}`}
+                        style={{ backgroundColor: badge?.colorHex ?? '#e2e8f0' }}
                       >
-                        {info?.badge?.icon ?? ''}
+                        {badge?.icon ?? ''}
                       </span>
                     )
                   })}
@@ -1211,14 +1228,15 @@ function App() {
                   })()
                 ).map((dateIso) => {
                   const info = badgeYear[dateIso]
+                  const badge = info?.badge ?? unloggedBadge
                   return (
                     <span
                       key={`year-${dateIso}`}
                       className="badge-cell"
-                      title={`${dateIso} • ${info?.badge?.displayName ?? 'No badge'} • Score ${info?.score?.toFixed(1) ?? '0.0'}`}
-                      style={{ backgroundColor: info?.badge?.colorHex ?? '#e2e8f0' }}
+                      title={`${dateIso} • ${badge?.displayName ?? 'No badge'} • Score ${info?.score?.toFixed(1) ?? '0.0'}`}
+                      style={{ backgroundColor: badge?.colorHex ?? '#e2e8f0' }}
                     >
-                      {info?.badge?.icon ?? ''}
+                      {badge?.icon ?? ''}
                     </span>
                   )
                 })}

@@ -113,6 +113,7 @@ const sampleGroups = [
 ]
 
 const sampleBadges = [
+  ['unlogged', 'Unlogged Day', '○', '#e2e8f0', -999, 0, 1],
   ['crash', 'Crash Day', '💥', '#b91c1c', -40, 1, 1],
   ['rough', 'Rough Day', '⚠️', '#f97316', -25, 2, 1],
   ['struggling', 'Struggling Day', '😓', '#fb923c', -10, 3, 1],
@@ -202,6 +203,7 @@ export async function ensureWorkbookTemplate() {
       '- active_from/inactive_from: YYYY-MM-DD date ranges (see Date Requirements above)',
       '',
       'Badge Scoring (Percentage-Based):',
+      '- Unlogged Day: Default when no habits are logged yet',
       '- Crash Day (-100% to -40%): Significantly below zero',
       '- Rough Day (-40% to -25%): Below expectations',
       '- Struggling Day (-25% to -10%): Moderately negative',

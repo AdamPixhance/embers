@@ -239,26 +239,37 @@ function computeScoreModelForDate(habits, dayCounts) {
 
 function resolveBadgeForScorePercent(scorePercent, badges) {
   const ordered = [...(badges ?? [])]
-    .filter((badge) => badge?.active !== false)
+    .filter((badge) => badge?.active !== false && badge?.badgeId !== 'unlogged')
     .sort((left, right) => left.minScore - right.minScore || left.sortOrder - right.sortOrder)
 
-  // Find the badge whose range contains the scorePercent
-  // Each badge's range is: [badge.minScore, nextBadge.minScore)
-  for (let i = 0; i < ordered.length; i++) {
-    const badge = ordered[i]
-    const nextBadge = ordered[i + 1]
-    const qualifies = scorePercent >= badge.minScore
-    const belowNext = !nextBadge || scorePercent < nextBadge.minScore
-    if (qualifies && belowNext) {
-      return badge
+  if (scorePercent < 0) {
+    for (const badge of ordered) {
+      if (scorePercent <= badge.minScore) {
+        return badge
+      }
+    }
+    return null
+  }
+
+  let winner = null
+  for (const badge of ordered) {
+    if (scorePercent >= badge.minScore) {
+      winner = badge
     }
   }
-  return null
+  return winner
 }
 
 function hasAnyProgress(dayRecord) {
   const counts = normalizeDayRecord(dayRecord).counts
   return Object.values(counts).some((value) => normalizeCountValue(value) !== 0)
+}
+
+function resolveBadgeForDay(dayRecord, scorePercent, badges) {
+  if (!hasAnyProgress(dayRecord)) {
+    return (badges ?? []).find((badge) => badge?.badgeId === 'unlogged' && badge?.active !== false) ?? null
+  }
+  return resolveBadgeForScorePercent(scorePercent, badges)
 }
 
 function computeDayScore(habits, dayCounts) {
@@ -284,7 +295,13 @@ function computeAverageScore(entries, habits, endDate, days) {
     const dayCounts = normalizeDayRecord(entries[dateIso]).counts
     if (!hasAnyProgress(entries[dateIso])) continue
     const habitsForDate = filterHabitsForDate(habits, dateIso)
-    if (habitsForDate.length === 0) continue
+    const dayModel = computeScoreModelForDate(habitsForDay, dayCounts)
+    map[dateIso] = {
+      date: dateIso,
+      score: dayModel.score,
+      badge: resolveBadgeForDay({ counts: dayCounts }, dayModel.scorePercent, badges),
+      hasProgress: hasAnyProgress(entries[dateIso]),
+    }
     scores.push(computeDayScore(habitsForDate, dayCounts))
   }
 
@@ -422,7 +439,7 @@ export function computeAnalytics(entries, habits, upToDate, badges = []) {
       score: dayModel.score,
       qualifiedCount: qualified,
       totalHabits: habitsForDay.length,
-      badge: resolveBadgeForScorePercent(dayModel.scorePercent, badges),
+      badge: resolveBadgeForDay({ counts: dayCounts }, dayModel.scorePercent, badges),
     }
   })
 
@@ -434,12 +451,12 @@ export function computeAnalytics(entries, habits, upToDate, badges = []) {
     return {
       date: dateIso,
       score: dayModel.score,
-      badge: resolveBadgeForScorePercent(dayModel.scorePercent, badges),
+      badge: resolveBadgeForDay({ counts: dayCounts }, dayModel.scorePercent, badges),
     }
   })
 
   const latestScoreModel = computeScoreModelForDate(habitsForLatest, latestCounts)
-  const dailyBadge = resolveBadgeForScorePercent(latestScoreModel.scorePercent, badges)
+  const dailyBadge = resolveBadgeForDay({ counts: latestCounts }, latestScoreModel.scorePercent, badges)
   const { signStreak, signStreakIsPositive } = computeSignStreak(entries, habits, upToDate)
 
   return {
@@ -514,7 +531,7 @@ export function computeBadgeMap(entries, habits, startDate, endDate, badges = []
     map[dateIso] = {
       date: dateIso,
       score: dayModel.score,
-      badge: resolveBadgeForScorePercent(dayModel.scorePercent, badges),
+      badge: resolveBadgeForDay({ counts: dayCounts }, dayModel.scorePercent, badges),
       hasProgress: hasAnyProgress(entries[dateIso]),
     }
   }
