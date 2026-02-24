@@ -157,6 +157,11 @@ export async function ensureWorkbookTemplate() {
     await fs.mkdir(DATA_DIR, { recursive: true })
     const workbook = new ExcelJS.Workbook()
 
+    // Set workbook properties for better Excel compatibility
+    workbook.author = 'Embers'
+    workbook.title = 'Embers Habit Tracker'
+    workbook.subject = 'Daily Habit Tracking'
+
     // Minimal workbook with zero formatting
     
     // Instructions sheet - plain text only
@@ -243,7 +248,9 @@ export async function ensureWorkbookTemplate() {
     sampleScheduleDays.forEach((row) => scheduleDays.addRow(row))
     scheduleDays.views = [{ state: 'frozen', ySplit: 1 }]
 
+    // Write workbook - use format option for better compatibility
     await workbook.xlsx.writeFile(WORKBOOK_PATH)
+    
     return true
   }
 }

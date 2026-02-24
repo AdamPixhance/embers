@@ -197,9 +197,9 @@ export async function listDayEntries() {
   return normalizedEntries
 }
 
-function resolvePotentialCount(habit) {
-  if (habit?.type === 'toggle') return 1
-  return normalizeCountValue(habit?.maxCount ?? 1)
+function resolvePotentialCount(_habit) {
+  // Both toggles and counters use 1 as the minimum to complete the habit
+  return 1
 }
 
 function computeScoreModelForDate(habits, dayCounts) {
