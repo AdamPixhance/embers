@@ -17,6 +17,7 @@
     "build:desktop": "npm run brand:assets && npm run build && electron-packager . Embers --platform=win32 --arch=x64 --overwrite --prune=false --asar=false --icon=assets/icons/pixcope-icon.ico --out=release --ignore=^/release$ --app-version=0.1.0 --app-copyright=Embers --win32metadata.CompanyName=Embers --win32metadata.FileDescription=Embers Habit App --win32metadata.OriginalFilename=Embers.exe --win32metadata.ProductName=Embers && node scripts/fix-packaged-deps.mjs",
     "package:portable": "npm run brand:assets && npm run build && node scripts/package-app.mjs",
     "build:desktop:installer": "npm run brand:assets && npm run build && electron-builder --win",
+    "shortcut:startmenu": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/create-start-menu-shortcut.ps1",
     "lint": "eslint .",
     "preview": "vite preview",
     "start:server": "node server/index.js",

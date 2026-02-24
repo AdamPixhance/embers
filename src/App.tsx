@@ -114,6 +114,7 @@ function App() {
   const [habitHistory, setHabitHistory] = useState<HabitHistoryItem[]>([])
   const [resetting, setResetting] = useState(false)
   const [exportingBackup, setExportingBackup] = useState(false)
+  const [resetAcknowledged, setResetAcknowledged] = useState(false)
 
   const loadWorkbookData = async () => {
     const response = await fetch(apiUrl('/api/data'))
@@ -297,6 +298,7 @@ function App() {
       await hydrateCountsForDate(workbook, date)
       await refreshAnalytics(date)
       setError('')
+      setResetAcknowledged(false)
       window.alert('App reset complete. All personal data was deleted and default placeholder habits were restored.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Reset failed')
@@ -587,6 +589,16 @@ function App() {
               Resetting will permanently delete all personal habits, streaks, statistics, timeline history, workbook customizations,
               and local app data. This action is irreversible.
             </p>
+            <label className="danger-checkbox">
+              <input
+                type="checkbox"
+                checked={resetAcknowledged}
+                onChange={(event) => setResetAcknowledged(event.target.checked)}
+                disabled={resetting || exportingBackup || loading || saving}
+                aria-label="I understand this reset is irreversible and deletes all personal data"
+              />
+              <span>I understand this is irreversible and will delete all personal data.</span>
+            </label>
           </div>
           <div className="danger-actions">
             <button
@@ -603,7 +615,7 @@ function App() {
               type="button"
               className="danger-button"
               onClick={resetAppData}
-              disabled={resetting || exportingBackup || loading || saving}
+              disabled={resetting || exportingBackup || loading || saving || !resetAcknowledged}
               title="Delete all personal data and reset app to default placeholders"
               aria-label="Delete all personal data and reset app to default placeholders"
             >
