@@ -2,7 +2,7 @@
   "name": "embers",
   "description": "Embers - native desktop habit system with workbook-driven configuration",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Embers",
   "homepage": "https://embers.local",
   "main": "electron/main.cjs",
@@ -13,10 +13,11 @@
     "dev:web": "vite",
     "dev:server": "node server/index.js",
     "build": "tsc -b && vite build",
+    "workbook:ensure": "node scripts/ensure-workbook-template.mjs",
     "brand:assets": "node scripts/generate-brand-assets.mjs",
-    "build:desktop": "npm run brand:assets && npm run build && electron-packager . Embers --platform=win32 --arch=x64 --overwrite --prune=false --asar=false --icon=assets/icons/embers.ico --out=release --ignore=\"^/(release|src|docs|\\.vscode|\\.git|scripts|public|Add.*\\.bat|electron-dev\\.log|\\.gitignore|\\.gitattributes|\\.hintrc|eslint\\.config\\.js|tsconfig.*\\.json|vite\\.config\\.ts|index\\.html|help\\.txt|TEAM_WORKFLOW\\.md|README\\.md)($|/)\" --app-version=1.0.0 --app-copyright=Embers --win32metadata.CompanyName=Embers --win32metadata.FileDescription=Embers Habit App --win32metadata.OriginalFilename=Embers.exe --win32metadata.ProductName=Embers && node scripts/fix-packaged-deps.mjs",
+    "build:desktop": "npm run workbook:ensure && npm run brand:assets && npm run build && electron-packager . Embers --platform=win32 --arch=x64 --overwrite --prune=false --asar=false --icon=assets/icons/embers.ico --out=release --ignore=\"^/(release|src|docs|\\.vscode|\\.git|scripts|public|Add.*\\.bat|electron-dev\\.log|\\.gitignore|\\.gitattributes|\\.hintrc|eslint\\.config\\.js|tsconfig.*\\.json|vite\\.config\\.ts|index\\.html|help\\.txt|TEAM_WORKFLOW\\.md|README\\.md)($|/)\" --app-version=1.0.1 --app-copyright=Embers --win32metadata.CompanyName=Embers --win32metadata.FileDescription=Embers Habit App --win32metadata.OriginalFilename=Embers.exe --win32metadata.ProductName=Embers && node scripts/fix-packaged-deps.mjs",
     "package:portable": "npm run build:desktop && node scripts/package-app.mjs",
-    "build:desktop:installer": "npm run brand:assets && npm run build && electron-builder --win",
+    "build:desktop:installer": "npm run workbook:ensure && npm run brand:assets && npm run build && electron-builder --win",
     "shortcut:startmenu": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/create-start-menu-shortcut.ps1",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -26,6 +27,9 @@
   "build": {
     "appId": "com.embers.app",
     "productName": "Embers",
+    "extraResources": [
+      "data/**/*"
+    ],
     "directories": {
       "output": "release",
       "buildResources": "assets/icons"
@@ -46,6 +50,7 @@
       ]
     },
     "nsis": {
+      "include": "build/installer-shortcut-cleanup.nsh",
       "installerIcon": "assets/icons/embers.ico",
       "uninstallerIcon": "assets/icons/embers.ico",
       "installerHeaderIcon": "assets/icons/embers-icon.ico",

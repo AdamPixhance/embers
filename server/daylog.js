@@ -295,13 +295,6 @@ function computeAverageScore(entries, habits, endDate, days) {
     const dayCounts = normalizeDayRecord(entries[dateIso]).counts
     if (!hasAnyProgress(entries[dateIso])) continue
     const habitsForDate = filterHabitsForDate(habits, dateIso)
-    const dayModel = computeScoreModelForDate(habitsForDay, dayCounts)
-    map[dateIso] = {
-      date: dateIso,
-      score: dayModel.score,
-      badge: resolveBadgeForDay({ counts: dayCounts }, dayModel.scorePercent, badges),
-      hasProgress: hasAnyProgress(entries[dateIso]),
-    }
     scores.push(computeDayScore(habitsForDate, dayCounts))
   }
 

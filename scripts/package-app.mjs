@@ -92,8 +92,8 @@ Notes
 - Data remains local on this machine
 
 Data Files
-- data/embers-habits.xlsx (created on first run if missing)
-- data/habit-day-log.json
+- resources/app/data/embers-habits.xlsx (bundled workbook template)
+- resources/app/data/habit-day-log.json
 
 Support
 Use the project repository issue tracker for feedback and bugs.

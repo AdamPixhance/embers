@@ -86,30 +86,12 @@ async function pathExists(targetPath) {
   }
 }
 
-async function resolvePreferredDataDir(userDataDir) {
-  // Development: use workspace data directory if available
-  if (isDev) {
-    const workspaceDataDir = path.join('C:', 'dev', 'development', 'Embers', 'data')
-    if (await pathExists(workspaceDataDir)) {
-      return workspaceDataDir
-    }
-  }
-
-  // Packed app: check for portable data dir first (same folder as exe)
-  if (isPacked) {
-    const portableDataDir = path.join(path.dirname(app.getPath('exe')), 'data')
-    if (await pathExists(portableDataDir)) {
-      return portableDataDir
-    }
-  }
-
-  // Fall back to user data directory
-  return path.join(userDataDir, 'Embers', 'data')
-}
-
 async function startApiServer() {
-  const userDataDir = app.getPath('userData')
-  const dataDir = await resolvePreferredDataDir(userDataDir)
+  const appPath = app.getAppPath()
+  const isAsarBundle = appPath.toLowerCase().includes('.asar')
+  const dataDir = isAsarBundle
+    ? path.join(process.resourcesPath, 'data')
+    : path.join(appPath, 'data')
   await fs.mkdir(dataDir, { recursive: true })
   process.env.EMBERS_DATA_DIR = dataDir
 
